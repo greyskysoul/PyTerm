@@ -1,0 +1,129 @@
+/* PyTerm theme */
+Screen {
+    background: #0f111a;
+}
+
+/* --- main layout ---------------------------------------------------------- */
+#term-root {
+    layout: vertical;
+}
+
+#term {
+    height: 1fr;
+    background: #0b0c12;
+    color: #c9d1d9;
+    padding: 0;
+}
+
+#status {
+    height: 1;
+    background: #161b29;
+    color: #8b949e;
+    text-style: bold;
+    padding: 0 1;
+}
+
+/* --- generic modal box ------------------------------------------------------ */
+Vertical#conn-box, Vertical#options-box, Vertical#xfer-box,
+Vertical#help-box, Vertical#picker-box, Vertical#confirm {
+    width: auto;
+    max-width: 88;
+    height: auto;
+    max-height: 90%;
+    background: #1c2233;
+    border: round $primary;
+    padding: 1 2;
+    margin: 2 4;
+}
+
+Static#conn-title, Static#options-title, Static#xfer-title,
+Static#help-title, Static#picker-title, Static#confirm-title {
+    text-style: bold;
+    color: $text;
+    margin-bottom: 1;
+}
+
+/* --- forms ------------------------------------------------------------------ */
+.form-row {
+    height: auto;
+    margin: 1 0 0 0;
+}
+
+.form-label {
+    width: 16;
+    content-align: left middle;
+    color: #9da5b4;
+}
+
+.form-row Input {
+    width: 18;
+}
+
+#conn-box DataTable {
+    height: 8;
+    margin: 1 0 0 0;
+}
+
+#conn-error {
+    color: #ff6b6b;
+    height: 1;
+    margin-top: 1;
+}
+
+/* --- help / main menu --------------------------------------------------------- */
+#help-box {
+    max-width: 66;
+}
+
+#help-body {
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+.help-item {
+    color: #c9d1d9;
+}
+
+#help-footer {
+    color: #8b949e;
+}
+
+/* --- options ------------------------------------------------------------------ */
+#options-body {
+    height: auto;
+    max-height: 60%;
+}
+
+#options-body Checkbox {
+    margin: 0;
+}
+
+#options-buttons, #xfer-buttons, #picker-buttons, #confirm-buttons {
+    margin-top: 1;
+    height: auto;
+}
+
+#xfer-state {
+    height: auto;
+    margin-top: 1;
+    color: #9ecbff;
+}
+
+#picker-tree {
+    height: 16;
+    margin-top: 1;
+    border: round #2a3142;
+}
+
+#picker-path {
+    color: #8b949e;
+}
+
+#confirm {
+    width: 54;
+    max-width: 60;
+}
+
+#confirm-message {
+    margin: 1 0;
+}

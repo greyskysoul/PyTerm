@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyterm"
+version = "0.1.0"
+description = "minicom-style cross-platform serial terminal with YMODEM file transfer (Windows + Linux)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "PyTerm" }]
+keywords = ["serial", "terminal", "ymodem", "minicom", "tui", "embedded"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Terminals :: Serial",
+    "Topic :: Communications",
+]
+dependencies = [
+    "pyserial>=3.5",
+    "textual>=8.0,<9",
+    "pyte>=0.8.2",
+    "platformdirs>=4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pyinstaller>=6",
+]
+# 测试专用：用于与 lrzsz 交互验证（Linux）
+interop = ["pytest-timeout>=2"]
+
+[project.scripts]
+pyterm = "pyterm.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyterm"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/pyterm/resources/app.tcss" = "pyterm/resources/app.tcss"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/pyterm", "packaging", "tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/pyterm"]
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["pyterm"]
