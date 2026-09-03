@@ -23,6 +23,33 @@ Screen {
     padding: 0 1;
 }
 
+/* --- 16 进制接收/发送输入条（仅在 HEX 模式开启时挂载） ----------------------- */
+#hex-bar {
+    height: auto;
+    background: #131826;
+    border-top: ascii #2a3142;
+    padding: 0 1;
+}
+
+/* 多行 16 进制输入区：自动按字节加空格并按宽度每行 4/8/16 字节排版 */
+#hex-bar TextArea {
+    width: 1fr;
+    height: 3;
+    background: #0f1420;
+    color: #dce2ec;
+    border: none;
+    padding: 0 1;
+}
+
+#hex-bar TextArea:focus {
+    background: #1a2133;
+}
+
+#hex-bar Button {
+    min-width: 8;
+    margin-left: 1;
+}
+
 /* --- generic modal box ------------------------------------------------------ */
 Vertical#conn-box, Vertical#options-box, Vertical#xfer-box,
 Vertical#help-box, Vertical#picker-box, Vertical#confirm {
@@ -31,7 +58,8 @@ Vertical#help-box, Vertical#picker-box, Vertical#confirm {
     height: auto;
     max-height: 90%;
     background: #1c2233;
-    border: round $primary;
+    /* ascii 边框：老式 conhost/低版本 PowerShell 也能正确显示 */
+    border: ascii $primary;
     padding: 1 2;
     margin: 2 4;
 }
@@ -59,15 +87,51 @@ Static#help-title, Static#picker-title, Static#confirm-title {
     width: 18;
 }
 
+.form-row Select {
+    width: 18;
+}
+
 #conn-box DataTable {
     height: 8;
     margin: 1 0 0 0;
+}
+
+/* 连接页输入框与选项页一致：单行紧凑、带底色区分字段 */
+#conn-box .form-row Input {
+    background: #232b40;
+    color: #dce2ec;
+    padding: 0 1;
+    margin: 0;
+}
+
+#conn-box .form-row Input:focus {
+    background: #2f3a58;
+    border: none;
+}
+
+#conn-box .form-row Input > .input--placeholder {
+    color: #7b869b;
+}
+
+/* 按钮另起一行并右对齐 */
+#conn-buttons {
+    margin-top: 1;
+    height: auto;
+}
+
+#conn-fill {
+    width: 1fr;
 }
 
 #conn-error {
     color: #ff6b6b;
     height: 1;
     margin-top: 1;
+}
+
+/* 选项/连接盒体收紧到内容宽度：即使行内并排两对字段也不撑满/溢边 */
+Vertical#options-box, Vertical#conn-box {
+    max-width: 80;
 }
 
 /* --- help / main menu --------------------------------------------------------- */
@@ -80,8 +144,27 @@ Static#help-title, Static#picker-title, Static#confirm-title {
     margin: 0 0 1 0;
 }
 
-.help-item {
+/* 可聚焦菜单项：单行、整行高亮表示光标所在 */
+#help-body Button.menu-item {
+    width: 100%;
+    min-width: 0;
+    height: 1;
+    padding: 0 1;
+    border: none;
+    background: transparent;
     color: #c9d1d9;
+    text-align: left;
+    content-align: left middle;
+}
+
+#help-body Button.menu-item:hover {
+    background: #232b40;
+}
+
+#help-body Button.menu-item:focus {
+    background: #2a3450;
+    color: #e6ebf4;
+    text-style: bold;
 }
 
 #help-footer {
@@ -89,13 +172,111 @@ Static#help-title, Static#picker-title, Static#confirm-title {
 }
 
 /* --- options ------------------------------------------------------------------ */
-#options-body {
-    height: auto;
-    max-height: 60%;
+#options-box {
+    max-width: 80;
+    padding: 0 2;  /* 去掉上下内边距，让小终端也能容纳整页 */
 }
 
+#options-body {
+    height: auto;
+}
+
+/* 输入行之间不再隔行（紧凑）；仅在与上方开关组之间留一行分隔 */
+#options-body .form-row {
+    margin: 0;
+}
+
+#options-body .form-row:first-of-type {
+    margin-top: 1;
+}
+
+/* 选项页紧凑布局：Checkbox/Input 以 compact 单行显示 */
 #options-body Checkbox {
     margin: 0;
+    background: transparent;
+    color: #cdd3dc;
+}
+
+#options-body Checkbox:focus {
+    background-tint: $foreground 8%;
+}
+
+/* 焦点/悬停时整行高亮，替代原来的边框 */
+#options-body Checkbox:focus > .toggle--label,
+#options-body Checkbox:hover > .toggle--label {
+    background: #2a3450;
+    color: #e6ebf4;
+    text-style: bold;
+}
+
+#options-body Checkbox.-on {
+    color: $text;
+}
+
+/* 空心圆（未选）/ 实心圆（选中）标记 */
+#options-body Checkbox > .toggle--button {
+    background: transparent;
+    color: #5d687d;
+}
+
+#options-body Checkbox.-on > .toggle--button {
+    color: $text-success;
+}
+
+#options-body Input {
+    background: #232b40;
+    color: #dce2ec;
+    padding: 0 1;
+    margin: 0;
+}
+
+#options-body Input:focus {
+    background: #2f3a58;
+    border: none;
+}
+
+#options-body Input > .input--placeholder {
+    color: #7b869b;
+}
+
+/* 下拉框与 Input 外观一致：底色填充、无边框、单行紧凑 */
+#options-body SelectCurrent {
+    background: #232b40;
+    color: #dce2ec;
+    padding: 0 0 0 1;
+    height: 1;
+}
+
+#options-body Select:focus > SelectCurrent,
+#options-body SelectCurrent:focus {
+    background: #2f3a58;
+}
+
+#options-body SelectCurrent > Static#label {
+    color: #dce2ec;
+}
+
+#options-body SelectCurrent .arrow {
+    color: #7b869b;
+    padding: 0 0 0 1;
+}
+
+/* 下拉展开列表 */
+#options-body Select > SelectOverlay {
+    border: ascii #2a3142;
+    background: #161b29;
+    max-height: 8;
+    padding: 0;
+}
+
+#options-body SelectOverlay > .option-list--option {
+    padding: 0 1;
+}
+
+#options-body SelectOverlay > .option-list--option-highlighted {
+    background: #2a3450;
+    color: #e6ebf4;
+    text-style: bold;
 }
 
 #options-buttons, #xfer-buttons, #picker-buttons, #confirm-buttons {
@@ -112,7 +293,7 @@ Static#help-title, Static#picker-title, Static#confirm-title {
 #picker-tree {
     height: 16;
     margin-top: 1;
-    border: round #2a3142;
+    border: ascii #2a3142;
 }
 
 #picker-path {
@@ -126,4 +307,118 @@ Static#help-title, Static#picker-title, Static#confirm-title {
 
 #confirm-message {
     margin: 1 0;
+}
+
+/* === compact (small window) simple layouts ====================================
+   终端太小时，选项/连接模态自动重建为“单列、整行字段 + 可滚动”的简洁面板，
+   保证小窗口下仍能操作所有字段（通过 .compact 类，见 screens/base.py）。 */
+Vertical#options-box.compact,
+Vertical#conn-box.compact {
+    width: 100%;
+    height: 1fr;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 0 1;
+    border: none;
+    background: #141b2c;
+}
+
+/* 标题与按钮固定，中间字段区占满剩余空间并允许滚动 */
+Vertical#options-box.compact #options-body,
+Vertical#conn-box.compact #conn-body {
+    height: 1fr;
+    margin: 0 0 1 0;
+}
+
+.compact .c-row {
+    height: auto;
+    width: 100%;
+    margin: 0;
+}
+
+.compact .c-label {
+    width: auto;
+    min-width: 0;
+    color: #9da5b4;
+    content-align: left middle;
+    margin-right: 2;
+}
+
+.compact .c-row Input,
+.compact .c-row Select {
+    width: 1fr;
+}
+
+/* 简洁模式选项页：下拉框/输入框沿用原有底色外观 */
+#options-box.compact .c-row Select > SelectOverlay {
+    border: ascii #2a3142;
+    background: #161b29;
+    max-height: 8;
+    padding: 0;
+}
+
+#options-box.compact SelectOverlay > .option-list--option {
+    padding: 0 1;
+}
+
+#options-box.compact SelectOverlay > .option-list--option-highlighted {
+    background: #2a3450;
+    color: #e6ebf4;
+    text-style: bold;
+}
+
+/* 简洁模式连接页：下拉端口 + 输入框与选项页视觉一致 */
+#conn-box.compact .c-row Input {
+    background: #232b40;
+    color: #dce2ec;
+    padding: 0 1;
+    margin: 0;
+}
+
+#conn-box.compact .c-row Input:focus {
+    background: #2f3a58;
+    border: none;
+}
+
+#conn-box.compact .c-row Input > .input--placeholder {
+    color: #7b869b;
+}
+
+#conn-box.compact SelectCurrent {
+    background: #232b40;
+    color: #dce2ec;
+    padding: 0 0 0 1;
+    height: 1;
+}
+
+#conn-box.compact .c-row Select:focus > SelectCurrent,
+#conn-box.compact SelectCurrent:focus {
+    background: #2f3a58;
+}
+
+#conn-box.compact SelectCurrent > Static#label {
+    color: #dce2ec;
+}
+
+#conn-box.compact SelectCurrent .arrow {
+    color: #7b869b;
+    padding: 0 0 0 1;
+}
+
+#conn-box.compact Select > SelectOverlay {
+    border: ascii #2a3142;
+    background: #161b29;
+    max-height: 8;
+    padding: 0;
+}
+
+#conn-box.compact SelectOverlay > .option-list--option {
+    padding: 0 1;
+}
+
+#conn-box.compact SelectOverlay > .option-list--option-highlighted {
+    background: #2a3450;
+    color: #e6ebf4;
+    text-style: bold;
 }

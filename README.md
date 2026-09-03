@@ -26,25 +26,45 @@ pip install -e ".[dev]"
 ```bash
 pyterm                          # 启动后按 Ctrl+A Z 打开菜单 / 自动弹出连接对话框
 pyterm --port COM3 --baud 115200
-pyterm /dev/ttyUSB0 -b 921600 -f ymodem
+pyterm /dev/ttyUSB0 -b 921600
+# 连接后直接发送字符串（支持 \n \r \t \xHH 等转义）
+pyterm -p COM3 -s "AT\r"
+# 连接后逐行发送脚本文件（# 开头为注释行）
+pyterm -p COM3 -f boot.txt
+# 连续 5 秒未收到任何字节则自动退出（-e 支持小数秒）
+pyterm -p COM3 -s "AT\r" -e 5
+# 启动后自动开启 16 进制接收/发送模式（HEX）
+pyterm -p COM3 --hex
 ```
+
+> 移除 -d/-s/-f 缩写：数据位/停止位/流控请用全称 `--data-bits`/`--stop-bits`/`--flow`；
+> `-s`/`-f` 已改作“启动后发送字符串/脚本”，需配合 `-p/--port`。
 
 ## 快捷键（Ctrl+A 前缀）
 
-| 按键     | 功能                          |
-|----------|-------------------------------|
-| `Ctrl+A` `Z` | 打开主菜单 / 帮助         |
-| `Ctrl+A` `X` | 退出                        |
-| `Ctrl+A` `S` | 发送文件（YMODEM）          |
-| `Ctrl+A` `R` | 接收文件（YMODEM）          |
-| `Ctrl+A` `L` | 会话捕获开关                |
-| `Ctrl+A` `C` | 清屏                        |
-| `Ctrl+A` `P` | 串口参数（连接设置）        |
-| `Ctrl+A` `O` | 选项                        |
-| `Ctrl+A` `A` | 换行(自动回绕)开关          |
-| `Ctrl+A` `E` | 本地回显开关                |
-| `Ctrl+A` `Ctrl+A` | 向设备发送字节 `0x01`   |
-| `Esc`（前缀中）| 取消前缀                    |
+| 按键 | 功能 |
+| ---------- | ------------------------------- |
+| `Ctrl+A` `Z` | 打开主菜单 / 帮助 |
+| `Ctrl+A` `X` | 退出 |
+| `Ctrl+A` `S` | 发送文件（YMODEM） |
+| `Ctrl+A` `R` | 接收文件（YMODEM） |
+| `Ctrl+A` `L` | 会话捕获开关 |
+| `Ctrl+A` `C` | 清屏 |
+| `Ctrl+A` `P` | 串口参数（连接设置） |
+| `Ctrl+A` `O` | 选项 |
+| `Ctrl+A` `H` | 16 进制接收/发送（HEX）开关 |
+| `Esc`（前缀中） | 取消前缀 |
+
+> 本地回显、自动回绕等开关集中在 `Ctrl+A` `O` 的选项弹层中设置（默认关闭），
+> 不再占用前缀快捷键。
+>
+> **HEX 模式**（`Ctrl+A H` 或选项页开关，可持久化）：收到的字节以十六进制文本显示；
+> 底部出现多行 16 进制输入区（只接受合法字符，自动按字节加空格，并按窗口宽度每行
+> 排 4/8/16 字节），主界面按键不再直接发送，必须点击底部“发送”按钮才把输入解析
+> 为字节发出；用快捷键开启后会自动聚焦输入区。
+>
+> **虚拟回环设备**：`Ctrl+A P` 连接页端口列表末尾的 `LOOPBACK` 无需真实串口，
+> 所有发送的字节会原样回显（纯回环），适合在没有硬件时调试收发与 HEX 显示。
 
 ## 开发
 
@@ -78,7 +98,7 @@ CI（`.github/workflows/ci.yml`）在 Windows / Ubuntu 双平台跑 lint/类型/
 
 ## 目录结构
 
-```
+```txt
 src/pyterm/
   app.py              主程序（Ctrl+A 前缀状态机、串口路由、传输 worker、捕获）
   config.py           配置数据模型 + JSON 持久化
@@ -110,4 +130,3 @@ packaging/            PyInstaller 启动器与 spec
 1. Linux 与 lrzsz 交叉验证：`sz -Y file` 对 PyTerm 接收；`rz -Y` 对 PyTerm 发送
 2. Windows/Linux 双端可用 socat(pty)/com0com 虚拟串口做端到端回环
 3. STM32 bootloader 实机烧录建议 115200/921600 各验证一次大文件（SHA256 比对）
-

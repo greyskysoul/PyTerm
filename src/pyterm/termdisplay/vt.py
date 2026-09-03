@@ -119,6 +119,24 @@ class TerminalModel:
             text = text.replace("\r\n", "\r").replace("\r", "\r\n")
         self._stream.feed(text)
 
+    # -- cursor state -------------------------------------------------------------------
+    def mid_line(self) -> bool:
+        """True when the display cursor sits inside a line that already has
+        content (0 < x < columns).  Used to insert a separator between two
+        separately-received RX chunks rendered on the same line."""
+        x = self._screen.cursor.x
+        return 0 < x < self.columns
+
+    def cursor_position(self) -> tuple[int, int]:
+        """(row, column) of the display cursor, clamped to the screen.
+
+        pyte leaves the column at ``columns`` when a wrap is pending (the
+        character is still visually on the last cell), so the column is
+        clamped back to the last column for display purposes."""
+        row = min(max(self._screen.cursor.y, 0), self.lines - 1)
+        col = min(max(self._screen.cursor.x, 0), self.columns - 1)
+        return row, col
+
     # -- output ---------------------------------------------------------------------------
     def history_rows(self) -> list[list[Char]]:
         return list(self._history)

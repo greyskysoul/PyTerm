@@ -105,3 +105,99 @@ class KeyMapper:
             return _VT_SEQUENCES[base]
 
         return None  # unmapped (shift combos, ctrl combos we don't know, ...)
+
+
+# --------------------------------------------------------------------------- bytes/text helpers
+
+_ESCAPE_MAP = {
+    "n": b"\n",
+    "r": b"\r",
+    "t": b"\t",
+    "b": b"\x08",
+    "a": b"\x07",
+    "f": b"\x0c",
+    "v": b"\x0b",
+    "e": b"\x1b",
+    "0": b"\x00",
+    "\\": b"\\",
+}
+
+
+def decode_escapes(text: str) -> bytes:
+    """Expand ``\\n \\r \\t \\xHH ...`` escapes in a command-line string.
+
+    Unknown escapes keep the backslash literally (``\\?`` -> ``?``).
+    """
+    out = bytearray()
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch != "\\":
+            out += ch.encode("utf-8")
+            i += 1
+            continue
+        i += 1  # consume backslash
+        if i >= len(text):
+            out += b"\\"
+            break
+        esc = text[i]
+        i += 1
+        if esc == "x":  # \xHH
+            digits = text[i : i + 2]
+            try:
+                out.append(int(digits, 16))
+                i += 2
+            except ValueError:
+                out += b"\\x"
+        elif esc in _ESCAPE_MAP:
+            out += _ESCAPE_MAP[esc]
+        else:
+            out += b"\\" + esc.encode("utf-8")
+    return bytes(out)
+
+
+def parse_hex_line(text: str) -> bytes:
+    """Parse a 16-hex input line such as ``"AA 0D 0A, 7F"`` into bytes.
+
+    Raises:
+        ValueError: when a token is not a valid one/two-digit hex number.
+    """
+    tokens = text.replace(",", " ").split()
+    out = bytearray()
+    for token in tokens:
+        if len(token) not in (1, 2) or any(
+            c not in "0123456789abcdefABCDEF" for c in token
+        ):
+            raise ValueError(f"无效的十六进制片段: {token!r}")
+        out.append(int(token, 16))
+    return bytes(out)
+
+
+def format_hex(data: bytes, per_line: int = 16) -> str:
+    """Render bytes as spaced uppercase hex, one group per line."""
+    lines = [
+        " ".join(f"{b:02X}" for b in data[start : start + per_line])
+        for start in range(0, len(data), per_line)
+    ]
+    return "\n".join(lines)
+
+
+def hex_bytes_per_line(width: int) -> int:
+    """Pick how many hex bytes fit on one line (16/8/4) for a given width."""
+    for count in (16, 8, 4):
+        if count * 3 - 1 <= width:
+            return count
+    return 4
+
+
+def format_hex_lines(digits: str, per_line: int) -> str:
+    """Lay out a string of hex digits into lines of ``per_line`` bytes.
+
+    Each byte is two digits separated by a single space; lines are joined with
+    ``\\n``.  An odd trailing digit is kept as an incomplete byte while typing.
+    """
+    rows: list[str] = []
+    for start in range(0, len(digits), per_line * 2):
+        chunk = digits[start : start + per_line * 2]
+        rows.append(" ".join(chunk[i : i + 2] for i in range(0, len(chunk), 2)))
+    return "\n".join(rows)

@@ -7,7 +7,7 @@ from functools import partial
 from textual.app import ComposeResult
 from textual.containers import Vertical, VerticalScroll
 from textual.events import Key
-from textual.widgets import Label, Static
+from textual.widgets import Button, Label, Static
 
 from pyterm.screens.base import ModalBase
 
@@ -17,10 +17,9 @@ MENU_ITEMS = [
     ("r", "接收文件 (YMODEM)"),
     ("c", "清屏"),
     ("l", "会话捕获 (log) 开 / 关"),
-    ("p", "串口参数（连接 / 断开）"),
-    ("o", "选项设置"),
-    ("a", "自动回绕 开 / 关"),
-    ("e", "本地回显 开 / 关"),
+    ("h", "16 进制接收/发送（HEX）开 / 关"),
+    ("p", "串口参数（连接设置）"),
+    ("o", "选项设置（本地回显 / 自动回绕等）"),
     ("x", "退出 PyTerm"),
 ]
 
@@ -30,17 +29,33 @@ class MainMenuScreen(ModalBase):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-box"):
-            yield Static("PyTerm — Ctrl+A 功能菜单", id="help-title")
+            yield Static("PyTerm - Ctrl+A 功能菜单", id="help-title")
             with VerticalScroll(id="help-body"):
-                yield Label("按下列按键执行对应功能（Ctrl+A Ctrl+A 向设备发送 0x01，Esc 关闭）：")
                 for key, desc in MENU_ITEMS:
-                    yield Label(f"   {key:<3}  {desc}", classes="help-item")
-                yield Label("   ⎇  再次按 Ctrl+A  = 发送字节 0x01", classes="help-item")
-            yield Label("按功能键 / Esc 关闭", id="help-footer")
+                    yield Button(
+                        f"  {key}   {desc}",
+                        id=f"menu-{key}",
+                        classes="menu-item",
+                        compact=True,
+                    )
+            yield Label("方向键选择；Enter 或功能字母执行；Esc 关闭", id="help-footer")
+
+    def on_mount(self) -> None:
+        self.query_one(".menu-item", Button).focus()
+
+    def _run(self, code: str) -> None:
+        self.dismiss(None)
+        # Run the action after this modal is gone.  NOTE: do not use a 0.0
+        # timer delay — Textual 8's Timer divides by the delay and crashes
+        # with ZeroDivisionError, so the menu action would never run.
+        self.app.set_timer(0.05, partial(self.app.menu_action, code))  # type: ignore[attr-defined]
 
     def on_key(self, event: Key) -> None:
         if event.key == "escape":
             return  # handled by binding
+        if event.key in ("up", "down", "left", "right"):
+            super().on_key(event)  # shared arrow-key navigation
+            return
         char = (event.character or "").lower()
         if not char:
             return
@@ -48,5 +63,14 @@ class MainMenuScreen(ModalBase):
         codes = {key for key, _ in MENU_ITEMS}
         if code in codes:
             event.stop()
-            self.dismiss(None)
-            self.app.set_timer(0.0, partial(self.app.menu_action, code))  # type: ignore[attr-defined]
+            self._run(code)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        button_id = event.button.id or ""
+        if not button_id.startswith("menu-"):
+            return
+        code = button_id[len("menu-") :]
+        codes = {key for key, _ in MENU_ITEMS}
+        if code in codes:
+            event.stop()
+            self._run(code)

@@ -103,6 +103,32 @@ def render_row(chars: list[Char]) -> Text:
     return text
 
 
+# Cursor visuals ----------------------------------------------------------------
+# The terminal shows an always-on cursor: a *filled block* while it is the
+# active typing target, and a *vertical bar* once focus moves elsewhere.
+_CURSOR_BLOCK_BG = Color.parse("#dde4ee")  # filled block background (active)
+_CURSOR_BLOCK_FG = Color.parse("#0b0c12")  # glyph carved inside the block
+_CURSOR_INACTIVE_FG = Color.parse("#9aa7b8")  # bar colour (inactive)
+_BAR_CURSOR = "\u2502"  # vertical bar shown when the view is inactive
+
+
+def _cursor_cell(under: str, active: bool) -> Text:
+    """Build the single cell shown at the cursor position."""
+    if active:
+        return Text(
+            (under or " "),
+            style=Style(color=_CURSOR_BLOCK_FG, bgcolor=_CURSOR_BLOCK_BG),
+        )
+    return Text(_BAR_CURSOR, style=Style(color=_CURSOR_INACTIVE_FG))
+
+
+def _overlay_at(row: Text, col: int, cell: Text) -> Text:
+    """Place ``cell`` over character column ``col`` of ``row``."""
+    if col < row.cell_len:
+        return Text.assemble(row[:col], cell, row[col + 1 :])
+    return Text.assemble(row, Text(" " * (col - row.cell_len)), cell)
+
+
 class TerminalView(Static):
     """Scrollable terminal region driven by a :class:`TerminalModel`."""
 
@@ -111,16 +137,28 @@ class TerminalView(Static):
         self.model = model
         self._offset = 0  # rows scrolled back from the bottom
         self._auto_scroll = True
-        self._dirty = True
+        self._active = True  # this view is the active typing target
+
+    @property
+    def active(self) -> bool:
+        """True while this view is the active typing target (filled block
+        cursor); False shows a hollow-box cursor instead."""
+        return self._active
+
+    @active.setter
+    def active(self, value: bool) -> None:
+        if value != self._active:
+            self._active = value
+            self.refresh()
 
     # -- lifecycle -------------------------------------------------------------------
     def on_mount(self) -> None:
-        self.set_interval(1 / 20.0, self._maybe_redraw)
         self._apply_size()
+        self.refresh()
 
     def on_resize(self) -> None:
         self._apply_size()
-        self.mark_dirty()
+        self.refresh()
 
     def _apply_size(self) -> None:
         w = max(1, self.size.width)
@@ -130,12 +168,20 @@ class TerminalView(Static):
 
     # -- external API ------------------------------------------------------------------
     def mark_dirty(self) -> None:
-        self._dirty = True
+        """Ask Textual to repaint this view; :meth:`render` rebuilds the content
+        straight from the model on the next paint.
+
+        (Do NOT pump content through ``Static.update`` here: pushing a cached
+        multi-line visual from a background timer races Textual's layout/paint
+        cycle and the new content is frequently never composited.  A plain
+        ``refresh()`` lets Textual call ``render()`` on its own schedule and is
+        coalesced to at most one repaint per frame.)"""
+        self.refresh()
 
     def scroll_to_bottom(self) -> None:
         self._auto_scroll = True
         self._offset = 0
-        self.mark_dirty()
+        self.refresh()
 
     # -- input ---------------------------------------------------------------------------
     def _wheel(self, up: bool) -> None:
@@ -149,7 +195,7 @@ class TerminalView(Static):
             self._offset = max(0, self._offset - 3)
             if self._offset == 0:
                 self._auto_scroll = True
-        self.mark_dirty()
+        self.refresh()
 
     def on_mouse_scroll_up(self, event: MouseScrollUp) -> None:
         event.stop()
@@ -160,34 +206,47 @@ class TerminalView(Static):
         self._wheel(up=False)
 
     # -- rendering -------------------------------------------------------------------------
-    def _maybe_redraw(self) -> None:
-        if self._dirty:
-            self._dirty = False
-            self._render_content()
+    def render(self) -> Text:
+        """Build the visible block from the model (called by Textual on repaint).
 
-    def _render_content(self) -> None:
+        An always-on cursor is drawn over the model's cursor cell: a filled
+        block while the view is active, a vertical bar otherwise."""
         h = max(1, self.size.height)
         model = self.model
         if self._auto_scroll:
             self._offset = 0
         total = model.total_rows()
+        history = model.history_rows()
+        screen = model.screen_rows()
+        cursor_row, cursor_col = model.cursor_position()
 
         if total <= h:
-            content_rows = [render_row(r) for r in model.screen_rows()]
-            rows: list[Text] = [Text("")] * (h - total) + content_rows
+            pad = max(0, h - total)
+            rows: list[Text] = [Text("")] * pad + [render_row(r) for r in screen]
+            cursor_disp = pad + cursor_row
         else:
             end = total - self._offset
             start = max(0, end - h)
-            all_rows = model.history_rows() + model.screen_rows()
+            all_rows = history + screen
             rows = [render_row(r) for r in all_rows[start:end]]
-            rows = [Text("")] * (h - len(rows)) + rows
+            if len(rows) < h:
+                rows = [Text("")] * (h - len(rows)) + rows
+            cursor_disp = len(history) + cursor_row - start
+
+        if 0 <= cursor_disp < len(rows):
+            row_chars = screen[cursor_row] if cursor_row < len(screen) else []
+            # pyte leaves blank lines out of its buffer, so a row may be empty
+            under = row_chars[cursor_col].data if cursor_col < len(row_chars) else " "
+            rows[cursor_disp] = _overlay_at(
+                rows[cursor_disp], cursor_col, _cursor_cell(under, self._active)
+            )
 
         block = Text()
         for i, line in enumerate(rows):
             if i:
                 block.append("\n")
             block.append_text(line)
-        self.update(block)
+        return block
 
 
 class StatusBar(Static):

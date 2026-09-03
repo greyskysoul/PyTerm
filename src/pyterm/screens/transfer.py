@@ -52,6 +52,9 @@ class _TransferScreen(ModalBase):
         self._last_update = 0.0
 
     def on_key(self, event: Key) -> None:
+        if event.key in ("up", "down", "left", "right"):
+            super().on_key(event)  # shared arrow-key navigation
+            return
         if event.key == "escape":
             event.stop()
             if self.active:
@@ -104,15 +107,15 @@ class SendScreen(_TransferScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="xfer-box"):
-            yield Static("发送文件 — YMODEM", id="xfer-title")
+            yield Static("发送文件 - YMODEM", id="xfer-title")
             with Horizontal(classes="form-row"):
                 yield Label("文件", classes="form-label")
                 yield Input("", id="file", placeholder="要发送的文件路径")
-                yield Button("浏览…", id="browse")
+                yield Button("浏览…", id="browse", compact=True)
             with Horizontal(id="xfer-buttons"):
-                yield Button("开始发送", id="start", variant="primary")
-                yield Button("取消传输", id="cancel", disabled=True)
-                yield Button("关闭", id="close")
+                yield Button("开始发送", id="start", variant="primary", compact=True)
+                yield Button("取消传输", id="cancel", disabled=True, compact=True)
+                yield Button("关闭", id="close", compact=True)
             yield self._make_progress_area()
 
     def on_mount(self) -> None:
@@ -150,18 +153,18 @@ class RecvScreen(_TransferScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="xfer-box"):
-            yield Static("接收文件 — YMODEM", id="xfer-title")
+            yield Static("接收文件 - YMODEM", id="xfer-title")
             with Horizontal(classes="form-row"):
                 yield Label("保存目录", classes="form-label")
                 yield Input("", id="dir", placeholder="目录")
-                yield Button("浏览…", id="browse")
+                yield Button("浏览…", id="browse", compact=True)
             with Horizontal(classes="form-row"):
                 yield Label("文件名", classes="form-label")
                 yield Input("", id="name", placeholder="留空 = 使用设备发送的文件名")
             with Horizontal(id="xfer-buttons"):
-                yield Button("开始接收", id="start", variant="primary")
-                yield Button("取消传输", id="cancel", disabled=True)
-                yield Button("关闭", id="close")
+                yield Button("开始接收", id="start", variant="primary", compact=True)
+                yield Button("取消传输", id="cancel", disabled=True, compact=True)
+                yield Button("关闭", id="close", compact=True)
             yield self._make_progress_area()
 
     def on_mount(self) -> None:

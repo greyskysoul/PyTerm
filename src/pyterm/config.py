@@ -58,13 +58,14 @@ class AppConfig:
 
     # --- terminal behaviour ---
     local_echo: bool = False
-    wrap: bool = True
+    wrap: bool = False
     enter_sends: str = "cr"  # cr | crlf | lf | none
     rx_add_cr: bool = False  # received LF is displayed as CR+LF
     rx_add_lf: bool = False  # received CR is displayed as CR+LF
     backspace_sends: str = "del"  # del(0x7f) | bs(0x08)
     decode: str = "utf-8"  # utf-8 | gbk | latin-1
     send_vt_sequences: bool = True  # arrows/f-keys -> VT escape sequences
+    hex_mode: bool = False  # 16 进制接收/发送（底部 16 进制输入框）
 
     # --- capture ---
     capture_path: str = ""

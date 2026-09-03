@@ -31,9 +31,9 @@ class PathPicker(ModalBase):
             with Vertical(id="picker-tree"):
                 pass
             with Horizontal(id="picker-buttons"):
-                yield Button("上一级", id="up")
-                yield Button("选择当前目录", id="choose")
-                yield Button("取消", id="cancel")
+                yield Button("上一级", id="up", compact=True)
+                yield Button("选择当前目录", id="choose", compact=True)
+                yield Button("取消", id="cancel", compact=True)
 
     def on_mount(self) -> None:
         if not self._pick_files:
