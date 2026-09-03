@@ -7,6 +7,7 @@ import codecs
 import contextlib
 import os
 import queue
+import shutil
 import sys
 import threading
 import time
@@ -47,6 +48,20 @@ _HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
 # Vertical-bar cursor shown in the 16-hex editor while it is not focused.
 _HEX_BAR = "\u2502"
 _HEX_BAR_STYLE = Style(color="#9aa7b8")
+
+# 主窗口最小可用终端尺寸：低于该值时界面“完全无法使用”，启动/运行时会打印
+# 提示并直接退出（而不是渲染一个残破、无法操作的界面）。
+MIN_TERMINAL_COLS = 20
+MIN_TERMINAL_ROWS = 5
+# app.run() 因窗口过小退出时的返回值，供 main() 识别并打印提示。
+_EXIT_TOO_SMALL = "too-small"
+
+
+def _too_small_message(cols: int, rows: int) -> str:
+    return (
+        f"PyTerm: 终端窗口太小（{cols} 列 × {rows} 行），界面无法正常使用。\n"
+        f"请将窗口放大到至少 {MIN_TERMINAL_COLS} 列 × {MIN_TERMINAL_ROWS} 行后重新运行。\n"
+    )
 
 
 def _linear_to_location(text: str, idx: int) -> tuple[int, int]:
@@ -260,16 +275,44 @@ class PyTermApp(App):
         self._xfer_ui: Any = None  # screen that shows progress
         self._xfer_thread: threading.Thread | None = None
 
+        # too-small terminal guard (see _guard_minimum_size)
+        self._too_small = False
+        self._too_small_size = (0, 0)
+
     # ====================================================================== compose
     def compose(self):
         with Container(id="term-root"):
             yield TerminalView(self.model, id="term")
             yield StatusBar("", id="status")
 
+    # ------------------------------------------------------ minimum-size guard
+    def _terminal_too_small(self) -> bool:
+        """True when the terminal is smaller than the usable floor."""
+        w, h = self.size.width, self.size.height
+        if w <= 0 or h <= 0:
+            return False  # layout not done yet
+        return w < MIN_TERMINAL_COLS or h < MIN_TERMINAL_ROWS
+
+    def _guard_minimum_size(self) -> None:
+        """Terminal far too small to be usable: stop the app; the CLI prints a
+        hint afterwards (see main()).  Safe to call repeatedly — only the first
+        detection triggers the exit."""
+        if self._too_small or not self._terminal_too_small():
+            return
+        self._too_small = True
+        self._too_small_size = (self.size.width, self.size.height)
+        self.exit(_EXIT_TOO_SMALL)
+
     def on_mount(self) -> None:
+        self._guard_minimum_size()
+        if self._too_small:
+            return  # exiting — do not start timers/bootstrap
         self.set_interval(0.4, self._tick)
         # compose children are not mounted yet — retry until the DOM is ready
         self._bootstrap_attempt()
+
+    def on_resize(self, _event=None) -> None:
+        self._guard_minimum_size()
 
     def _bootstrap_attempt(self) -> None:
         try:
@@ -845,8 +888,10 @@ def _parse_args(argv):
             '  pyterm -p COM3 -s "AT\\r"\n'
             "  pyterm -p COM3 -f boot.txt -e 5\n"
             "  pyterm -p COM3 --hex\n"
+            "  pyterm --bare -p COM3 -b 115200   # 无界面纯直通：stdin→串口，串口→stdout\n"
             "\n"
             "-s/-f 内容支持 \\n \\r \\t \\xHH 等转义；-e 支持小数秒。"
+            "--bare 隐藏全部界面，仅供外部进程（如 AI agent）通过标准输入输出驱动。"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False,
@@ -888,36 +933,127 @@ def _parse_args(argv):
     )
     startup.add_argument("--hex", action="store_true", help="启动即开启 16 进制接收/发送")
 
+    bridge = parser.add_argument_group("直通模式（--bare，无界面）")
+    bridge.add_argument(
+        "--bare",
+        action="store_true",
+        help="隐藏全部界面：把 stdin 接到串口（发送），串口 RX 原样打到 stdout。"
+        "需通过 -p/--port 指定串口，适合把终端交给 AI agent 等外部进程驱动",
+    )
+
     args = parser.parse_args(argv)
     if (args.send is not None or args.script is not None) and not args.port:
         parser.error("-s/--send、-f/--script 需要先通过 -p/--port 指定端口")
     if args.exit_idle is not None and args.exit_idle <= 0:
         parser.error("-e/--exit-idle 必须为正数")
+    if args.bare and not args.port:
+        parser.error("--bare 直通模式必须通过 -p/--port 指定串口")
+    if args.bare and (args.send or args.script or args.hex or args.exit_idle is not None):
+        parser.error("--bare 直通模式不能与 -s/-f/-e/--hex 等交互启动选项同时使用")
     return args
+
+
+def _make_conn(cfg: AppConfig, args) -> ConnectionSettings | None:
+    """Build the CLI connection settings from -p/-b/--parity/...; returns None
+    when no connection option was given (interactive mode then starts idle)."""
+    if not (args.port or args.baud):
+        return None
+    conn = deepcopy(cfg.last)
+    if args.port:
+        conn.port = args.port
+    if args.baud:
+        conn.baudrate = args.baud
+    if args.data_bits:
+        conn.bytesize = args.data_bits
+    if args.parity:
+        conn.parity = args.parity.upper()
+    if args.stop_bits:
+        conn.stopbits = args.stop_bits
+    if args.flow:
+        conn.flow = args.flow.lower()
+    return conn
+
+
+def _binary_stdio() -> None:
+    """Make stdin/stdout byte-transparent on Windows (no CRLF translation)."""
+    if os.name == "nt":
+        with contextlib.suppress(Exception):
+            import msvcrt
+
+            msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+            msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+
+def run_bare(args) -> int:
+    """--bare entry point: a transparent, UI-less serial bridge.
+
+    Every byte read from stdin is written to the port and every byte received
+    on the port is written raw to stdout.  Nothing else is rendered, so an
+    external process (e.g. an AI agent) can own this process's stdin/stdout
+    pipes and talk straight to the device.
+    """
+    cfg = load_config()
+    conn = _make_conn(cfg, args)
+    assert conn is not None, "--bare requires -p/--port (enforced by argparse)"
+
+    _binary_stdio()
+    stop = threading.Event()
+
+    def on_rx(data: bytes) -> None:  # serial reader thread
+        try:
+            sys.stdout.buffer.write(data)
+            sys.stdout.buffer.flush()
+        except (OSError, ValueError):
+            stop.set()
+
+    def on_error(message: str) -> None:
+        sys.stderr.write(f"pyterm: {message}\n")
+        sys.stderr.flush()
+        stop.set()
+
+    mgr = SerialManager(on_data=on_rx, on_error=on_error)
+    err = mgr.open(conn)
+    if err:
+        sys.stderr.write(f"pyterm: 连接失败: {err}\n")
+        sys.stderr.flush()
+        return 1
+    sys.stderr.write(f"pyterm: bare 直通已连接 {conn.short()}（stdin→串口，串口 RX→stdout）\n")
+    sys.stderr.flush()
+
+    def pump_stdin() -> None:
+        fd = sys.stdin.fileno()
+        try:
+            while not stop.is_set():
+                data = os.read(fd, 4096)
+                if not data:  # stdin EOF -> agent closed the pipe
+                    break
+                mgr.write(data)
+        except (OSError, ValueError):
+            pass  # console closed / interrupted
+
+    stdin_thread = threading.Thread(target=pump_stdin, name="pyterm-bare-stdin", daemon=True)
+    stdin_thread.start()
+    try:
+        while stdin_thread.is_alive() and not stop.is_set():
+            stdin_thread.join(timeout=0.2)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        mgr.close()
+    return 0
 
 
 def main(argv=None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
+    if args.bare:
+        return run_bare(args)
+
     cfg = load_config()
     if args.hex:
         cfg.hex_mode = True  # 本次启动自动开启 16 进制接收/发送
 
-    cli_conn: ConnectionSettings | None = None
-    if args.port or args.baud:
-        conn = deepcopy(cfg.last)
-        if args.port:
-            conn.port = args.port
-        if args.baud:
-            conn.baudrate = args.baud
-        if args.data_bits:
-            conn.bytesize = args.data_bits
-        if args.parity:
-            conn.parity = args.parity.upper()
-        if args.stop_bits:
-            conn.stopbits = args.stop_bits
-        if args.flow:
-            conn.flow = args.flow.lower()
-        cli_conn = conn
+    cli_conn = _make_conn(cfg, args)
 
     app = PyTermApp(
         cfg=cfg,
@@ -926,7 +1062,18 @@ def main(argv=None) -> int:
         startup_text=args.send,
         startup_script=args.script,
     )
-    app.run()
+
+    # 启动前检查终端尺寸：窗口小到完全无法使用时直接提示并退出，不进入 TUI。
+    cols, rows = shutil.get_terminal_size()
+    if cols < MIN_TERMINAL_COLS or rows < MIN_TERMINAL_ROWS:
+        sys.stderr.write(_too_small_message(cols, rows))
+        return 1
+
+    result = app.run()
+    if result == _EXIT_TOO_SMALL:  # 运行中窗口被缩到过小
+        w, h = app._too_small_size
+        sys.stderr.write(_too_small_message(w, h))
+        return 1
     return 0
 
 

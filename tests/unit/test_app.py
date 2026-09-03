@@ -833,3 +833,166 @@ async def test_connection_compact_on_small_window_and_connect():
         await pilot.pause(0.2)
         assert calls == [1]
         assert len(app.screen_stack) == 1, "dialog dismissed after connect"
+
+
+# --------------------------------------------------------------------------- --bare CLI
+
+
+def test_cli_bare_requires_port():
+    """--bare must specify a port: it is a headless bridge, not a UI."""
+    from pyterm.app import _parse_args
+
+    with pytest.raises(SystemExit):
+        _parse_args(["--bare"])
+    with pytest.raises(SystemExit):
+        _parse_args(["--bare", "-b", "115200"])
+
+
+def test_cli_bare_rejects_interactive_startup_options():
+    """--bare has no UI, so -s/-f/-e/--hex (interactive startup) are refused."""
+    from pyterm.app import _parse_args
+
+    with pytest.raises(SystemExit):
+        _parse_args(["--bare", "-p", "COM3", "--hex"])
+    with pytest.raises(SystemExit):
+        _parse_args(["--bare", "-p", "COM3", "-s", "AT\r"])
+    with pytest.raises(SystemExit):
+        _parse_args(["--bare", "-p", "COM3", "-e", "5"])
+
+
+def test_cli_bare_accepts_port_and_baud():
+    from pyterm.app import _parse_args
+
+    args = _parse_args(["--bare", "-p", "COM3", "-b", "115200"])
+    assert args.bare is True
+    assert args.port == "COM3"
+    assert args.baud == 115200
+
+
+# --------------------------------------------------------------------------- main menu / exit dialog small-window
+
+
+async def test_help_menu_stays_boxed_on_large_window():
+    """The normal Ctrl+A Z menu keeps its centred boxed layout on a big-enough
+    terminal (no `compact` class)."""
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        app.push_screen(MainMenuScreen())
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        assert not scr.query_one("#help-box").has_class("compact")
+
+
+async def test_help_menu_compact_on_small_window_stays_usable():
+    """Regression: the Ctrl+A Z menu overflowed tiny terminals.  Below the
+    threshold the root toggles `compact`: it fills the screen, fits inside it,
+    and every item is still reachable with the arrow keys."""
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(40, 12)) as pilot:
+        await pilot.pause()
+        app.push_screen(MainMenuScreen())
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        root = scr.query_one("#help-box")
+        assert root.has_class("compact")
+        # the box must lie fully inside the terminal
+        assert root.region.x >= 0 and root.region.y >= 0
+        assert root.region.right <= scr.size.width
+        assert root.region.bottom <= scr.size.height
+        # first item focused; arrows reach the last one (menu scrolls into view)
+        assert app.focused.id == "menu-z"
+        for _ in range(8):
+            await pilot.press("down")
+            await pilot.pause(0.01)
+        assert app.focused.id == "menu-x"
+
+
+async def test_confirm_dialog_stays_boxed_on_large_window():
+    """The exit confirmation keeps its boxed layout when the terminal is big."""
+    from pyterm.screens.base import ConfirmDialog
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 24)) as pilot:
+        await pilot.pause()
+        app.push_screen(ConfirmDialog("退出", "确定要退出 PyTerm 吗？"))
+        await pilot.pause(0.2)
+        assert not app.screen_stack[-1].query_one("#confirm").has_class("compact")
+
+
+async def test_confirm_dialog_compact_on_small_window():
+    """Regression: the exit dialog (fixed width 54) overflowed narrow windows.
+    On a small terminal it toggles `compact`, stays inside the screen, and both
+    buttons remain usable."""
+    from pyterm.screens.base import ConfirmDialog
+
+    app = PyTermApp()
+    async with app.run_test(size=(40, 10)) as pilot:
+        await pilot.pause()
+        app.push_screen(ConfirmDialog("退出", "确定要退出 PyTerm 吗？"))
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        root = scr.query_one("#confirm")
+        assert root.has_class("compact")
+        assert root.region.x >= 0 and root.region.right <= scr.size.width
+        assert root.region.y >= 0 and root.region.bottom <= scr.size.height
+        assert app.focused.id == "yes"
+        await pilot.press("right")
+        await pilot.pause(0.02)
+        assert app.focused.id == "no"
+
+
+# --------------------------------------------------------------------------- minimum terminal size
+
+
+async def test_app_does_not_exit_on_usable_window():
+    """A normal-sized terminal never trips the too-small guard."""
+    app = PyTermApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause(0.2)
+        assert app._too_small is False
+        assert app._running is True
+
+
+async def test_app_exits_when_terminal_too_small():
+    """When the terminal is far too small to be usable, the app stops instead
+    of rendering a broken interface."""
+    from pyterm.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS
+
+    app = PyTermApp()
+    async with app.run_test(
+        size=(MIN_TERMINAL_COLS - 5, MIN_TERMINAL_ROWS - 1)
+    ) as pilot:
+        await pilot.pause(0.3)
+        assert app._too_small is True
+        assert app._running is False
+
+
+def test_too_small_message_lists_required_size():
+    from pyterm.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS, _too_small_message
+
+    msg = _too_small_message(10, 3)
+    assert "10" in msg and "3" in msg
+    assert str(MIN_TERMINAL_COLS) in msg
+    assert str(MIN_TERMINAL_ROWS) in msg
+    assert "太小" in msg
+
+
+def test_cli_prints_hint_and_returns_1_when_terminal_too_small(monkeypatch, capsys):
+    """main() checks the terminal before launching the TUI: too small -> a hint
+    on stderr and exit code 1, without entering the (unusable) interface."""
+    import os
+
+    import pyterm.app as appmod
+
+    monkeypatch.setattr(
+        appmod.shutil, "get_terminal_size", lambda *a, **k: os.terminal_size((10, 3))
+    )
+    rc = appmod.main([])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "太小" in err

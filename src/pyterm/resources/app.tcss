@@ -422,3 +422,38 @@ Vertical#conn-box.compact #conn-body {
     color: #e6ebf4;
     text-style: bold;
 }
+
+/* === 功能菜单 / 退出确认：小窗口切换（见 screens/base.py ResponsiveCompact） =========
+   窗口太小时给根节点加 .compact 类：整屏/整宽、去边距去边框；选项与连接页已在
+   上面定义 .compact，这里为 help-box 与 confirm 补齐。 */
+Vertical#help-box.compact,
+Vertical#confirm.compact {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border: none;
+    background: #141b2c;
+}
+
+/* 功能菜单紧凑布局：占满整屏，标题/提示固定，字段区占满剩余空间并允许滚动 */
+Vertical#help-box.compact {
+    height: 1fr;
+    max-height: 100%;
+    padding: 0 1;
+}
+
+Vertical#help-box.compact #help-body {
+    height: 1fr;
+    margin: 0 0 1 0;
+}
+
+/* 退出确认紧凑布局：整宽、贴近顶部，消息自动换行不超界 */
+Vertical#confirm.compact {
+    height: auto;
+    max-height: 100%;
+    padding: 1 2;
+}
+
+Vertical#confirm.compact #confirm-message {
+    margin: 1 0;
+}

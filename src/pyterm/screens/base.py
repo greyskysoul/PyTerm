@@ -227,8 +227,48 @@ class AdaptiveModal(ModalBase):
                     widget.value = value  # type: ignore[assignment]
 
 
-class ConfirmDialog(Screen[bool]):
-    """Yes/No confirmation modal; dismisses with ``True`` / ``False``."""
+class ResponsiveCompact(ModalBase):
+    """Modal that switches its root to a full-screen ``compact`` layout when
+    the terminal is too small for the normal boxed one.
+
+    Unlike AdaptiveModal both variants share the exact same widget tree — only
+    the CSS differs — so resizing just toggles a ``compact`` class on the root:
+    no DOM rebuild, no in-progress state to preserve.  Subclasses set ROOT_ID
+    plus the MIN_WIDTH / MIN_HEIGHT thresholds below which ``compact`` applies.
+
+    Subclasses that define their own ``on_mount`` must call ``super().on_mount()``.
+    """
+
+    ROOT_ID: ClassVar[str] = ""
+    MIN_WIDTH: ClassVar[int] = 0
+    MIN_HEIGHT: ClassVar[int] = 0
+
+    def _wants_compact(self) -> bool:
+        size = self.size
+        return size.width < self.MIN_WIDTH or size.height < self.MIN_HEIGHT
+
+    def _apply_compact(self) -> None:
+        with contextlib.suppress(Exception):  # DOM not ready / already torn down
+            self.query_one(f"#{self.ROOT_ID}").set_class(self._wants_compact(), "compact")
+
+    def on_mount(self) -> None:
+        self._apply_compact()
+
+    def on_resize(self, _event=None) -> None:
+        self._apply_compact()
+
+
+class ConfirmDialog(ResponsiveCompact):
+    """Yes/No confirmation modal; dismisses with ``True`` / ``False``.
+
+    On terminals narrower/shorter than MIN_WIDTH/MIN_HEIGHT the root box gets
+    the ``compact`` class (full width, no margins) so it never overflows.
+    """
+
+    ROOT_ID = "confirm"
+    # 富布局盒子宽 54 且带 2*4 外边距，需要约 62 列；更小则切换为整宽布局
+    MIN_WIDTH = 62
+    MIN_HEIGHT = 14
 
     BINDINGS = [("escape", "no", "否")]
 
@@ -254,11 +294,8 @@ class ConfirmDialog(Screen[bool]):
                 yield Button(self._no, variant="default", id="no", compact=True)
 
     def on_mount(self) -> None:
+        super().on_mount()
         self.query_one("#yes", Button).focus()
-
-    def on_key(self, event: Key) -> None:
-        if _handle_arrow_key(self, event):
-            event.stop()
 
     def _click(self, result: bool) -> None:
         self.dismiss(result)

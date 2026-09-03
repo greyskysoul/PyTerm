@@ -8,6 +8,9 @@ minicom 风格的跨平台（Windows / Linux）串口终端 TUI，内置健壮�
 - YMODEM 发送 / 接收：CRC-16-CCITT、128/1024 字节块可配置、超时重传、进度显示、可取消
 - 端口/波特率等参数随时可改、配置持久化
 - 会话捕获（log）、本地回显、行尾转换、HEX 显示等选项
+- 弹层（菜单 / 连接 / 选项 / 确认对话框）自动适配小窗口（紧凑整屏布局）
+- 窗口小到完全无法使用时（< 20 列或 < 5 行）直接打印提示并退出，不进入残破界面
+- `--bare` 无界面纯串口直通：stdin→串口、串口 RX→stdout，供 AI agent 等外部进程驱动
 - Windows（建议 Windows Terminal）与 Linux 双平台
 
 ## 安装
@@ -35,10 +38,16 @@ pyterm -p COM3 -f boot.txt
 pyterm -p COM3 -s "AT\r" -e 5
 # 启动后自动开启 16 进制接收/发送模式（HEX）
 pyterm -p COM3 --hex
+# 无界面纯串口直通（--bare）：隐藏全部界面，必须指定端口。
+# stdin 字节→串口发送，串口 RX 原样打到 stdout，适合把终端交给 AI agent 等进程：
+pyterm --bare -p COM3 -b 115200
 ```
 
 > 移除 -d/-s/-f 缩写：数据位/停止位/流控请用全称 `--data-bits`/`--stop-bits`/`--flow`；
 > `-s`/`-f` 已改作“启动后发送字符串/脚本”，需配合 `-p/--port`。
+>
+> `--bare` 为隐藏全部界面的纯直通模式：只使用连接参数（`-p/-b/--parity/...`），
+> 不能与 `-s/-f/-e/--hex` 等交互启动选项混用。
 
 ## 快捷键（Ctrl+A 前缀）
 

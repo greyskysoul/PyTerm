@@ -9,7 +9,7 @@ from textual.containers import Vertical, VerticalScroll
 from textual.events import Key
 from textual.widgets import Button, Label, Static
 
-from pyterm.screens.base import ModalBase
+from pyterm.screens.base import ResponsiveCompact
 
 MENU_ITEMS = [
     ("z", "主菜单 / 帮助（本窗口）"),
@@ -24,23 +24,38 @@ MENU_ITEMS = [
 ]
 
 
-class MainMenuScreen(ModalBase):
-    """Overlay listing the Ctrl+A functions; a single letter key runs one."""
+def _menu_body() -> ComposeResult:
+    """The menu buttons shared by both (rich / compact) layouts."""
+    for key, desc in MENU_ITEMS:
+        yield Button(
+            f"  {key}   {desc}",
+            id=f"menu-{key}",
+            classes="menu-item",
+            compact=True,
+        )
+
+
+class MainMenuScreen(ResponsiveCompact):
+    """Overlay listing the Ctrl+A functions; a single letter key runs one.
+
+    Small terminals toggle the ``compact`` class on ``#help-box`` (see
+    ResponsiveCompact), turning the boxed list into a full-screen scrollable
+    one so every item stays reachable.
+    """
+
+    ROOT_ID = "help-box"
+    MIN_WIDTH = 50
+    MIN_HEIGHT = 22
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-box"):
             yield Static("PyTerm - Ctrl+A 功能菜单", id="help-title")
             with VerticalScroll(id="help-body"):
-                for key, desc in MENU_ITEMS:
-                    yield Button(
-                        f"  {key}   {desc}",
-                        id=f"menu-{key}",
-                        classes="menu-item",
-                        compact=True,
-                    )
+                yield from _menu_body()
             yield Label("方向键选择；Enter 或功能字母执行；Esc 关闭", id="help-footer")
 
     def on_mount(self) -> None:
+        super().on_mount()
         self.query_one(".menu-item", Button).focus()
 
     def _run(self, code: str) -> None:
