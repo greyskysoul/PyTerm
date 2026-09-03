@@ -730,6 +730,31 @@ async def test_loopback_echoes_sent_bytes():
         assert app.is_connected() is False
 
 
+async def test_clear_screen_resets_tx_rx_counters():
+    """清屏 (Ctrl+A C) 同时复位状态栏的 TX/RX 字节计数器与显示内容。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        assert app.open_loopback() is None
+
+        app.send_bytes(b"hello")
+        await pilot.pause(0.3)
+        assert app._tx == 5
+        assert app._rx == 5
+        assert "hello" in str(app._view().render())
+
+        # Ctrl+A C 走清屏动作
+        await pilot.press("ctrl+a")
+        await pilot.press("c")
+        await pilot.pause(0.3)
+
+        assert app._tx == 0, "清屏后 TX 计数应归零"
+        assert app._rx == 0, "清屏后 RX 计数应归零"
+        assert not "".join(c.data for r in app.model.screen_rows() for c in r).strip()
+        assert "TX 0" in app._status_text()
+        assert "RX 0" in app._status_text()
+
+
 async def test_loopback_echoes_cr_as_crlf():
     """A lone \r sent into the loopback comes back as \r\n (like a real
     terminal), so Enter starts a new line instead of overwriting it."""

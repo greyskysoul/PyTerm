@@ -666,9 +666,17 @@ class PyTermApp(App):
             self.query_one("#hex-input", TextArea).focus()
 
     def clear_terminal(self) -> None:
+        """清屏：同时复位 TX/RX 字节计数器与 HEX 行内计数，并刷新状态栏。
+
+        清屏代表显示区域重新开始，状态栏里的收发计数也随之从 0 累计，
+        便于按“屏/页”衡量一次会话的数据量。
+        """
         self.model.clear()
+        self._tx = 0
+        self._rx = 0
         self._hex_row_bytes = 0  # 清屏后 HEX 行计数从头开始
         self._view().mark_dirty()
+        self._refresh_status()
 
     # =========================================================================== config
     def apply_config(self) -> None:
