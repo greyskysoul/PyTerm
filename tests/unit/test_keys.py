@@ -97,10 +97,23 @@ def test_format_hex():
 
 
 def test_hex_bytes_per_line():
+    # 默认最大 16 字节/行（输入框使用）
     assert hex_bytes_per_line(200) == 16
-    assert hex_bytes_per_line(30) == 8  # 8*3-1=23 <= 30 < 47
-    assert hex_bytes_per_line(15) == 4  # 4*3-1=11 <= 15 < 23
+    assert hex_bytes_per_line(47) == 16  # 16*3-1 = 47 刚好够
+    assert hex_bytes_per_line(46) == 8
+    assert hex_bytes_per_line(23) == 8
+    assert hex_bytes_per_line(22) == 4
+    assert hex_bytes_per_line(15) == 4  # 4*3-1 = 11 <= 15 < 23
     assert hex_bytes_per_line(5) == 4  # smallest supported line
+
+    # HEX 接收显示允许更大的行：4/8/16/32
+    assert hex_bytes_per_line(200, max_bytes=32) == 32
+    assert hex_bytes_per_line(95, max_bytes=32) == 32  # 32*3-1 = 95 刚好够
+    assert hex_bytes_per_line(94, max_bytes=32) == 16  # 差一列则退回 16
+    assert hex_bytes_per_line(47, max_bytes=32) == 16
+    assert hex_bytes_per_line(46, max_bytes=32) == 8
+    assert hex_bytes_per_line(11, max_bytes=32) == 4  # 4*3-1 = 11
+    assert hex_bytes_per_line(10, max_bytes=32) == 4  # 最小兜底
 
 
 def test_format_hex_lines():

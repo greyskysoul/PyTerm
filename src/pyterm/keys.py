@@ -182,11 +182,18 @@ def format_hex(data: bytes, per_line: int = 16) -> str:
     return "\n".join(lines)
 
 
-def hex_bytes_per_line(width: int) -> int:
-    """Pick how many hex bytes fit on one line (16/8/4) for a given width."""
-    for count in (16, 8, 4):
+def hex_bytes_per_line(width: int, max_bytes: int = 16) -> int:
+    """Pick how many hex bytes fit on one line for a given width.
+
+    Returns the largest of the halving sequence ``max_bytes, max_bytes/2, ... 4``
+    (e.g. 16/8/4, or 32/16/8/4 when ``max_bytes=32``) whose ``count*3 - 1``
+    character width still fits ``width``; falls back to 4.
+    """
+    count = max_bytes
+    while count > 4:
         if count * 3 - 1 <= width:
             return count
+        count //= 2
     return 4
 
 

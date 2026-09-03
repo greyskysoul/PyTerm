@@ -502,10 +502,15 @@ class PyTermApp(App):
         self._last_rx = time.monotonic()
         if self.cfg.hex_mode:
             # 16 进制接收：把收到的字节以十六进制文本送入终端显示。
-            # 若光标正停在行中（前面已有内容），先补一个空格，避免上一个
-            # 数据块末尾字节与下一个数据块首字节粘在一起（如 "42"+"0D"）。
-            text = format_hex(data)
+            # 真实 0A/0D 字节在这里只是普通数据，一律显示为 "0A"/"0D"，
+            # 绝不当作换行去断行；只有按字节数分组处才换行。
+            # 每行字节数按终端显示宽度自适应（32/16/8/4），让行恰好铺满窗口，
+            # 避免行过窄被软回绕或行过宽浪费右侧空白。
+            per_line = hex_bytes_per_line(max(1, self.model.columns), max_bytes=32)
+            text = format_hex(data, per_line)
             if text:
+                # 若光标正停在行中（前面已有内容），先补一个空格，避免上一个
+                # 数据块末尾字节与下一个数据块首字节粘在一起（如 "42"+"0D"）。
                 if self.model.mid_line():
                     text = " " + text
                 # format_hex 内部用 \n 分页，但终端里单独的 \n 只换行不回车，
