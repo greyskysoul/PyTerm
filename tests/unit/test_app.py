@@ -513,6 +513,27 @@ async def test_hex_receive_separates_rx_chunks():
         assert "420D" not in text
 
 
+async def test_hex_receive_multiline_wraps_to_line_start():
+    """RX chunks longer than one hex line wrap cleanly: each wrapped line must
+    start at column 0 (format_hex's LF separator is sent as CR+LF, otherwise a
+    bare LF makes every subsequent line drift right like a staircase)."""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        app.cfg.hex_mode = True
+        app._rx_to_terminal(bytes(range(17)))  # 17 bytes -> 16-byte line + "10"
+        await pilot.pause(0.3)
+        rows = [
+            "".join(c.data for c in row).rstrip() for row in app.model.screen_rows()
+        ]
+        nonempty = [r for r in rows if r]
+        assert len(nonempty) >= 2
+        assert nonempty[0] == "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F"
+        # 第二行必须从行首开始，前面不能有缩进（回归 \n -> \r\n 修复）
+        assert nonempty[1].startswith("10")
+        assert nonempty[1] == nonempty[1].lstrip()
+
+
 async def test_hex_send_button_transmits_bytes():
     app = PyTermApp()
     sent: list[bytes] = []
@@ -534,13 +555,16 @@ async def test_hex_send_button_transmits_bytes():
         await pilot.pause(0.05)
         app._send_hex_box()
         assert sent == [b"\xaa\x0d\x7f"]
-        assert field.text == ""
+        # 发送后发送区内容被保留，可直接再次发送同一批数据
+        assert field.text == "AA 0D 7F"
+        app._send_hex_box()
+        assert sent == [b"\xaa\x0d\x7f", b"\xaa\x0d\x7f"]
 
         # non-hex input is stripped by the editor -> empty warning, nothing sent
         field.text = "GG"
         await pilot.pause(0.05)
         app._send_hex_box()
-        assert sent == [b"\xaa\x0d\x7f"]
+        assert sent == [b"\xaa\x0d\x7f", b"\xaa\x0d\x7f"]
         assert any("输入字节" in n for n in notes)
 
 

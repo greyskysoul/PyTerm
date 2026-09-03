@@ -450,7 +450,7 @@ class PyTermApp(App):
             self._remind_connect()
             return
         self.send_bytes(data)  # handles TX counter / local echo / loopback echo
-        field.text = ""
+        # 发送后保留输入内容（便于重复发送/追加），仅把焦点还给输入框
         field.focus()
 
     def close_serial(self) -> None:
@@ -508,6 +508,9 @@ class PyTermApp(App):
             if text:
                 if self.model.mid_line():
                     text = " " + text
+                # format_hex 内部用 \n 分页，但终端里单独的 \n 只换行不回车，
+                # 会令后续每行逐次右移成阶梯状；改用 \r\n 使每行回到行首。
+                text = text.replace("\n", "\r\n")
                 self.model.feed_bytes(text.encode("ascii", "replace"))
         else:
             self.model.feed_bytes(data)
