@@ -779,6 +779,95 @@ async def test_loopback_echoes_cr_as_crlf():
         assert app._rx == 6  # \r\n echoed unchanged (2 bytes)
 
 
+class _FakeSerial:
+    """SerialManager 替身：记录打开状态与写入内容（供“切换连接”测试用）。"""
+
+    def __init__(self) -> None:
+        self._open = False
+        self.written: list[bytes] = []
+
+    @property
+    def is_open(self) -> bool:
+        return self._open
+
+    def open(self, settings) -> str | None:
+        self.settings = settings
+        self._open = True
+        return None
+
+    def close(self) -> None:
+        self._open = False
+
+    def write(self, data: bytes) -> bool:
+        if not self._open:
+            return False
+        self.written.append(data)
+        return True
+
+    def set_dtr(self, _value: bool) -> None:
+        pass
+
+    def set_rts(self, _value: bool) -> None:
+        pass
+
+
+async def test_switch_from_loopback_to_real_port(monkeypatch):
+    """Regression: LOOPBACK → 真实串口 切换后必须退出回环模式。
+
+    旧代码 open_serial() 不复位 _loopback：真实串口虽已打开，但发送仍被
+    回环分支截走、状态栏仍显示“虚拟回环”，看起来就像“切换不成功”。
+    """
+    from pyterm.config import ConnectionSettings
+
+    monkeypatch.setattr("pyterm.app.save_config", lambda cfg: None)
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        fake = _FakeSerial()
+        app.serial = fake  # type: ignore[assignment]
+
+        assert app.open_loopback() is None
+        assert app._loopback is True
+        assert "虚拟回环" in app._status_text()
+
+        # ConnectionScreen 对非 LOOPBACK 行调用的正是 open_serial
+        settings = ConnectionSettings(port="COM42", baudrate=9600)
+        assert app.open_serial(settings) is None
+
+        assert app._loopback is False, "切到真实串口后应退出虚拟回环"
+        assert fake.is_open
+        assert "虚拟回环" not in app._status_text()
+        assert "COM42" in app._status_text()
+
+        # 发送必须到达真实串口，而不是被回环截走
+        app.send_bytes(b"z")
+        assert fake.written == [b"z"]
+
+
+async def test_switch_real_to_real_keeps_sending_to_new_port(monkeypatch):
+    """真实串口 → 另一真实串口：数据发往新端口。"""
+    from pyterm.config import ConnectionSettings
+
+    monkeypatch.setattr("pyterm.app.save_config", lambda cfg: None)
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        fake = _FakeSerial()
+        app.serial = fake  # type: ignore[assignment]
+
+        assert app.open_serial(ConnectionSettings(port="COM1", baudrate=9600)) is None
+        app.send_bytes(b"a")
+        assert fake.written == [b"a"]
+
+        assert app.open_serial(ConnectionSettings(port="COM2", baudrate=115200)) is None
+        app.send_bytes(b"b")
+        assert app._loopback is False
+        assert fake.written == [b"a", b"b"]
+        assert "COM2" in app._status_text()
+
+
 def test_cli_exit_idle_accepts_float_and_rejects_nonpositive():
     from pyterm.app import _parse_args
 

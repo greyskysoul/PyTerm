@@ -387,6 +387,11 @@ class PyTermApp(App):
     def open_serial(self, settings: ConnectionSettings) -> str | None:
         if self._xfer_thread is not None and self._xfer_thread.is_alive():
             return "请先完成/取消进行中的文件传输"
+        # 离开虚拟回环模式：一旦要打开真实串口，发送必须走该端口而不是回环。
+        # 与 open_loopback()（关闭真实串口并把 _loopback 置 True）保持对称，
+        # 否则 LOOPBACK → 真实串口 切换后 _loopback 仍为 True，发送会被回环
+        # 截走、状态栏也一直显示“虚拟回环”，看起来就像“切换不成功”。
+        self._loopback = False
         err = self.serial.open(settings)
         if err is None:
             self.cfg.last = settings
