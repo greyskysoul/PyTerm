@@ -28,7 +28,6 @@ from pyterm.config import AppConfig, ConnectionSettings, load_config, save_confi
 from pyterm.keys import (
     KeyMapper,
     decode_escapes,
-    format_hex,
     format_hex_lines,
     hex_bytes_per_line,
     parse_hex_line,
@@ -263,6 +262,9 @@ class PyTermApp(App):
         self._last_rx = time.monotonic()
         self._startup_thread: threading.Thread | None = None
         self._loopback = False  # virtual echo device (no real port)
+        # HEX 接收显示：当前显示行已排的字节数（跨接收块持续计数，用于按
+        # 窗口宽度在 4/8/16/32 字节处连续换行）
+        self._hex_row_bytes = 0
 
         # capture file
         self._capture_fh: Any = None
@@ -423,6 +425,7 @@ class PyTermApp(App):
         present = len(self.query("#hex-bar")) > 0
         if self.cfg.hex_mode:
             if not present:
+                self._hex_row_bytes = 0  # 重新进入 HEX 模式：从头开始计行
                 self.query_one("#term-root").mount(_HexBar(id="hex-bar"), before="#status")
         elif present:
             with contextlib.suppress(Exception):
@@ -501,25 +504,50 @@ class PyTermApp(App):
         self._write_capture(data)
         self._last_rx = time.monotonic()
         if self.cfg.hex_mode:
-            # 16 进制接收：把收到的字节以十六进制文本送入终端显示。
-            # 真实 0A/0D 字节在这里只是普通数据，一律显示为 "0A"/"0D"，
-            # 绝不当作换行去断行；只有按字节数分组处才换行。
-            # 每行字节数按终端显示宽度自适应（32/16/8/4），让行恰好铺满窗口，
-            # 避免行过窄被软回绕或行过宽浪费右侧空白。
-            per_line = hex_bytes_per_line(max(1, self.model.columns), max_bytes=32)
-            text = format_hex(data, per_line)
+            # 16 进制接收：真实 0A/0D 只是普通数据，显示为 "0A"/"0D"，不当作
+            # 换行断行；行只在累计满 N 字节（按窗口宽度取 32/16/8/4）时换行。
+            text = self._format_hex_rx(data)
             if text:
-                # 若光标正停在行中（前面已有内容），先补一个空格，避免上一个
-                # 数据块末尾字节与下一个数据块首字节粘在一起（如 "42"+"0D"）。
-                if self.model.mid_line():
-                    text = " " + text
-                # format_hex 内部用 \n 分页，但终端里单独的 \n 只换行不回车，
-                # 会令后续每行逐次右移成阶梯状；改用 \r\n 使每行回到行首。
-                text = text.replace("\n", "\r\n")
                 self.model.feed_bytes(text.encode("ascii", "replace"))
         else:
             self.model.feed_bytes(data)
         self._view().mark_dirty()
+
+    def _hex_rx_per_line(self) -> int:
+        """每行多少字节随终端显示宽度自适应（32/16/8/4）。"""
+        return hex_bytes_per_line(max(1, self.model.columns), max_bytes=32)
+
+    def _format_hex_rx(self, data: bytes) -> str:
+        """把一段接收数据排版为“每行 N 字节”的十六进制文本。
+
+        发送区(输入框)之所以能连续按宽度换行，是因为它每次把整篇文本重排；
+        而接收数据是分块到达的，若只在单个块内分组，小于 N 字节的小块会一直
+        堆在同一行、长时间不换行。这里用 ``self._hex_row_bytes`` 跨数据块持续
+        计数，无论块多大都严格在每满 N 字节处换行，从而与发送区一致地连续
+        自动换行。文本用 ``\\r\\n`` 换行，保证每行回到列首。
+        """
+        if not data:
+            return ""
+        per_line = self._hex_rx_per_line()
+        used = self._hex_row_bytes
+        if used >= per_line:  # 行宽变化后旧计数失效，重新从行首排
+            used = 0
+        out: list[str] = []
+        # 若本行已有内容（含切到 HEX 前文本模式留下的内容），先补一个空格，
+        # 避免上一数据块末尾字节与下一数据块首字节粘在一起（如 "42"+"0D"）。
+        if self.model.mid_line():
+            out.append(" ")
+        i, n = 0, len(data)
+        while i < n:
+            seg = data[i : i + (per_line - used)]
+            i += len(seg)
+            out.append(" ".join(f"{b:02X}" for b in seg))
+            used += len(seg)
+            if used >= per_line:
+                out.append("\r\n")  # 该行已满：换到下一行行首
+                used = 0
+        self._hex_row_bytes = used
+        return "".join(out)
 
     # ==================================================================== key handling
     async def _on_key(self, event: Key) -> None:
@@ -639,6 +667,7 @@ class PyTermApp(App):
 
     def clear_terminal(self) -> None:
         self.model.clear()
+        self._hex_row_bytes = 0  # 清屏后 HEX 行计数从头开始
         self._view().mark_dirty()
 
     # =========================================================================== config

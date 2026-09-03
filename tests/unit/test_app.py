@@ -554,6 +554,29 @@ async def test_hex_receive_does_not_break_on_cr_lf_bytes():
         assert nonempty == ["41 42 0D 0A 43 44"]
 
 
+async def test_hex_receive_wraps_across_small_chunks():
+    """连续到达的多个小块也要严格按“每行 N 字节”换行（与发送区一致的连续
+    自动换行），而不是每个块各自排版、长期堆在同一行不换行。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        app.cfg.hex_mode = True
+        per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
+        # 每块只发 2 字节，但累计超过 per_line 字节后必须发生换行
+        chunk = b"\xaa\xbb"
+        for _ in range(per_line // 2 + 1):
+            app._rx_to_terminal(chunk)
+        await pilot.pause(0.3)
+        rows = [
+            "".join(c.data for c in row).rstrip() for row in app.model.screen_rows()
+        ]
+        nonempty = [r for r in rows if r]
+        assert nonempty[0] == " ".join("AA BB" for _ in range(per_line // 2))
+        # 溢出部分从新一行第 0 列开始
+        assert nonempty[1] == "AA BB"
+        assert nonempty[1] == nonempty[1].lstrip()
+
+
 async def test_hex_send_button_transmits_bytes():
     app = PyTermApp()
     sent: list[bytes] = []
