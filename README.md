@@ -90,10 +90,18 @@ mypy src/pyterm   # 类型检查
 
 ```bash
 pip install pyinstaller
-pyinstaller packaging/pyterm.spec    # Windows 上得到单文件 exe（在 Windows 构建）
+pyinstaller packaging/pyterm.spec    # 得到 onedir 目录 dist/pyterm/（体积优化）
 ```
 
-CI（`.github/workflows/ci.yml`）在 Windows / Ubuntu 双平台跑 lint/类型/测试并构建产物。
+体积优化（`packaging/pyterm.spec` 已内置）：
+
+- **onedir 布局**：避免 onefile 每次启动自解压的开销，便于在嵌入式设备上检查/删除未使用的运行时文件
+- **排除 ssl/网络模块**：串口终端不用 SSL，省约 6MB（libcrypto/libssl）
+- **排除未使用的 Textual 组件**与 stdlib 扩展模块（`_decimal`/`_lzma`/`_bz2`/`_zstd` 等）
+- **strip + UPX**：Linux 与 Python 3.12 下生效；Windows + Python 3.14 因二进制启用 CFG 自动跳过 UPX
+
+CI（`.github/workflows/ci.yml`）在 Windows / Ubuntu 双平台跑 lint/类型/测试并构建产物
+（CI 会自动安装 UPX）。推送 `v*` 标签（如 `v0.1.0`）时自动用构建产物创建 GitHub Release。
 
 ## 技术栈
 

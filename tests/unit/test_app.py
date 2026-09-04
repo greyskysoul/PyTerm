@@ -527,9 +527,7 @@ async def test_hex_receive_multiline_wraps_to_line_start():
         per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
         app._rx_to_terminal(bytes(range(per_line + 1)))  # 一整行 + 1 字节
         await pilot.pause(0.3)
-        rows = [
-            "".join(c.data for c in row).rstrip() for row in app.model.screen_rows()
-        ]
+        rows = ["".join(c.data for c in row).rstrip() for row in app.model.screen_rows()]
         nonempty = [r for r in rows if r]
         assert len(nonempty) >= 2
         assert nonempty[0] == " ".join(f"{b:02X}" for b in range(per_line))
@@ -548,9 +546,7 @@ async def test_hex_receive_does_not_break_on_cr_lf_bytes():
         await pilot.pause()
         app._rx_to_terminal(b"AB\r\nCD")  # 含真实 CR/LF（0D 0A）
         await pilot.pause(0.3)
-        rows = [
-            "".join(c.data for c in row).rstrip() for row in app.model.screen_rows()
-        ]
+        rows = ["".join(c.data for c in row).rstrip() for row in app.model.screen_rows()]
         nonempty = [r for r in rows if r]
         # 全部留在同一显示行内顺序显示，0D/0A 处没有产生额外断行
         assert nonempty == ["41 42 0D 0A 43 44"]
@@ -570,9 +566,7 @@ async def test_hex_receive_wraps_across_small_chunks():
         for _ in range(per_line // 2 + 1):
             app._rx_to_terminal(chunk)
         await pilot.pause(0.3)
-        rows = [
-            "".join(c.data for c in row).rstrip() for row in app.model.screen_rows()
-        ]
+        rows = ["".join(c.data for c in row).rstrip() for row in app.model.screen_rows()]
         nonempty = [r for r in rows if r]
         assert nonempty[0] == " ".join("AA BB" for _ in range(per_line // 2))
         # 溢出部分从新一行第 0 列开始
@@ -943,9 +937,21 @@ async def test_options_compact_on_small_window():
 
         # every control of the dialog exists inside the simple layout
         for cid in (
-            "echo", "wrap", "rx_cr", "rx_lf", "ts", "vt", "hex",
-            "enter", "back", "decode", "timeout", "retries", "blocksize",
-            "save", "cancel",
+            "echo",
+            "wrap",
+            "rx_cr",
+            "rx_lf",
+            "ts",
+            "vt",
+            "hex",
+            "enter",
+            "back",
+            "decode",
+            "timeout",
+            "retries",
+            "blocksize",
+            "save",
+            "cancel",
         ):
             assert len(scr.query(f"#{cid}")) == 1, f"missing #{cid} in compact mode"
 
@@ -1073,8 +1079,14 @@ async def test_compact_controls_start_at_the_same_column():
         await pilot.pause(0.4)
         scr = app.screen_stack[-1]
         assert scr.query_one("#options-box").has_class("compact") is True
-        xs = [scr.query_one(f"#{cid}").region.x for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")]
-        widths = [scr.query_one(f"#{cid}").region.width for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")]
+        xs = [
+            scr.query_one(f"#{cid}").region.x
+            for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")
+        ]
+        widths = [
+            scr.query_one(f"#{cid}").region.width
+            for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")
+        ]
         assert len(set(xs)) == 1, f"控件左缘未对齐: {xs}"
         assert len(set(widths)) == 1, f"控件宽度不一致: {widths}"
 
@@ -1382,9 +1394,7 @@ async def test_app_exits_when_terminal_too_small():
     from pyterm.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS
 
     app = PyTermApp()
-    async with app.run_test(
-        size=(MIN_TERMINAL_COLS - 5, MIN_TERMINAL_ROWS - 1)
-    ) as pilot:
+    async with app.run_test(size=(MIN_TERMINAL_COLS - 5, MIN_TERMINAL_ROWS - 1)) as pilot:
         await pilot.pause(0.3)
         assert app._too_small is True
         assert app._running is False

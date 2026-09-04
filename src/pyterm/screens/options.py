@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.content import Content
+from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from pyterm.config import save_config
@@ -55,7 +58,7 @@ def _circle_fields():
     ]
 
 
-def _field_row(label: str, control) -> Horizontal:
+def _field_row(label: str, control: Widget) -> Generator[Widget, None, None]:
     """One full-width labelled row used by the compact layout."""
     with Horizontal(classes="c-row"):
         yield Label(label, classes="c-label")
@@ -104,11 +107,18 @@ class _OptionsCompact(Vertical):
                 "退格发送", FieldSelect(_BACK_OPTIONS, id="back", allow_blank=False, compact=True)
             )
             yield from _field_row(
-                "解码字符集", FieldSelect(_DECODE_OPTIONS, id="decode", allow_blank=False, compact=True)
+                "解码字符集",
+                FieldSelect(_DECODE_OPTIONS, id="decode", allow_blank=False, compact=True),
             )
-            yield from _field_row("传输超时(s)", Input("", id="timeout", placeholder="10", compact=True))
-            yield from _field_row("重试次数", Input("", id="retries", placeholder="10", compact=True))
-            yield from _field_row("数据块", Input("", id="blocksize", placeholder="1024 / 128", compact=True))
+            yield from _field_row(
+                "传输超时(s)", Input("", id="timeout", placeholder="10", compact=True)
+            )
+            yield from _field_row(
+                "重试次数", Input("", id="retries", placeholder="10", compact=True)
+            )
+            yield from _field_row(
+                "数据块", Input("", id="blocksize", placeholder="1024 / 128", compact=True)
+            )
         with Horizontal(id="options-buttons"):
             yield Button("保存", id="save", variant="primary", compact=True)
             yield Button("取消", id="cancel", compact=True)

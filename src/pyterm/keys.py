@@ -165,9 +165,7 @@ def parse_hex_line(text: str) -> bytes:
     tokens = text.replace(",", " ").split()
     out = bytearray()
     for token in tokens:
-        if len(token) not in (1, 2) or any(
-            c not in "0123456789abcdefABCDEF" for c in token
-        ):
+        if len(token) not in (1, 2) or any(c not in "0123456789abcdefABCDEF" for c in token):
             raise ValueError(f"无效的十六进制片段: {token!r}")
         out.append(int(token, 16))
     return bytes(out)

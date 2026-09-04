@@ -467,9 +467,7 @@ class PyTermApp(App):
         pending = self._pending_hints
         self._pending_hints = []
         data = b"".join(
-            f"\x1b[1m\x1b[38;2;255;165;0m{t}\x1b[0m\r\n".encode(
-                self.model.decode, "replace"
-            )
+            f"\x1b[1m\x1b[38;2;255;165;0m{t}\x1b[0m\r\n".encode(self.model.decode, "replace")
             for t in pending
         )
         self.model.feed_bytes(data)
@@ -828,12 +826,7 @@ class PyTermApp(App):
     def _check_idle_exit(self) -> None:
         """(-e) exit when no byte has been received for ``exit_idle`` seconds."""
         limit = self.exit_idle
-        if (
-            limit is None
-            or self._transfer_busy()
-            or self._startup_busy()
-            or self._prefix
-        ):
+        if limit is None or self._transfer_busy() or self._startup_busy() or self._prefix:
             return
         if time.monotonic() - self._last_rx >= limit:
             self.exit()
@@ -1038,7 +1031,9 @@ def _parse_args(argv):
     )
 
     conn = parser.add_argument_group("连接参数")
-    conn.add_argument("-p", "--port", metavar="PORT", default=None, help="串口，如 COM3 或 /dev/ttyUSB0")
+    conn.add_argument(
+        "-p", "--port", metavar="PORT", default=None, help="串口，如 COM3 或 /dev/ttyUSB0"
+    )
     conn.add_argument("-b", "--baud", type=int, metavar="BAUD", default=None, help="波特率")
     conn.add_argument("--data-bits", type=int, metavar="5-8", default=None, help="数据位")
     conn.add_argument("--parity", metavar="N/E/O", default=None, help="校验位")
@@ -1113,8 +1108,10 @@ def _binary_stdio() -> None:
         with contextlib.suppress(Exception):
             import msvcrt
 
-            msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-            msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+            # os.O_BINARY / msvcrt.setmode only exist on Windows; mypy on
+            # POSIX has no stub for them, hence the ignores.
+            msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)  # type: ignore[attr-defined]
+            msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)  # type: ignore[attr-defined]
 
 
 def run_bare(args) -> int:
