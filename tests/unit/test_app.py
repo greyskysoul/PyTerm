@@ -679,7 +679,7 @@ def test_cli_send_and_script_require_port():
 async def test_connection_page_lists_virtual_loopback():
     from pyterm.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyTermApp(enable_debug=True)
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(ConnectionScreen())
@@ -689,10 +689,22 @@ async def test_connection_page_lists_virtual_loopback():
         assert scr._devices[-1][0] == "LOOPBACK"  # type: ignore[attr-defined]
 
 
-async def test_connect_virtual_loopback_routes_to_open_loopback():
+async def test_connection_page_hides_virtual_loopback_by_default():
     from pyterm.screens.connection import ConnectionScreen
 
     app = PyTermApp()
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        app.push_screen(ConnectionScreen())
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        assert not any(dev == "LOOPBACK" for dev, _ in scr._devices)  # type: ignore[attr-defined]
+
+
+async def test_connect_virtual_loopback_routes_to_open_loopback():
+    from pyterm.screens.connection import ConnectionScreen
+
+    app = PyTermApp(enable_debug=True)
     calls: list = []
 
     async with app.run_test(size=(100, 30)) as pilot:
@@ -896,6 +908,20 @@ def test_cli_hex_flag_parsed():
     assert _parse_args([]).hex is False
 
 
+def test_cli_enable_debug_parsed_and_hidden_from_help(capsys):
+    from pyterm.app import _parse_args
+
+    assert _parse_args(["--enable-debug"]).enable_debug is True
+    assert _parse_args([]).enable_debug is False
+
+    # --enable-debug 是隐藏调试开关，不出现在 --help 文本中
+    with pytest.raises(SystemExit) as exc:
+        _parse_args(["--help"])
+    assert exc.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--enable-debug" not in help_text
+
+
 async def test_hex_mode_enabled_at_startup_shows_bar():
     """A config with hex_mode=True (set by the --hex flag) starts in HEX mode."""
     from pyterm.config import AppConfig
@@ -1006,10 +1032,10 @@ async def test_options_switches_layout_when_resized_and_keeps_edits():
 
 async def test_connection_compact_on_small_window_and_connect():
     """Small-window connection page replaces the port table with a dropdown
-    (LOOPBACK still offered) and connecting to it still works."""
+    (LOOPBACK still offered when --enable-debug) and connecting to it still works."""
     from pyterm.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyTermApp(enable_debug=True)
     calls: list = []
 
     async with app.run_test(size=(58, 15)) as pilot:

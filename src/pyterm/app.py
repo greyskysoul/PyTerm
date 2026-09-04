@@ -255,6 +255,7 @@ class PyTermApp(App):
         exit_idle: float | None = None,
         startup_text: str | None = None,
         startup_script: str | None = None,
+        enable_debug: bool = False,
     ) -> None:
         super().__init__()
         self.cfg = cfg or AppConfig()
@@ -262,6 +263,8 @@ class PyTermApp(App):
         self.exit_idle = max(0.0, float(exit_idle)) if exit_idle is not None else None
         self.startup_text = startup_text
         self.startup_script = startup_script
+        # --enable-debug：开启调试选项（如虚拟回环端口），默认关闭。
+        self.enable_debug = enable_debug
 
         self.model = TerminalModel(80, 24, scrollback=self.cfg.scrollback, decode=self.cfg.decode)
         self.model.rx_add_cr = self.cfg.rx_add_cr
@@ -1081,6 +1084,8 @@ def _parse_args(argv):
         version=f"%(prog)s {__version__}",
         help="显示版本号并退出",
     )
+    # 调试开关：默认隐藏，不在 --help 中展示。
+    parser.add_argument("--enable-debug", action="store_true", help=argparse.SUPPRESS)
 
     conn = parser.add_argument_group("连接参数")
     conn.add_argument(
@@ -1243,6 +1248,7 @@ def main(argv=None) -> int:
         exit_idle=args.exit_idle,
         startup_text=args.send,
         startup_script=args.script,
+        enable_debug=args.enable_debug,
     )
 
     # 启动前检查终端尺寸：窗口小到完全无法使用时直接提示并退出，不进入 TUI。

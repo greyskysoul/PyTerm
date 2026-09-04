@@ -123,8 +123,9 @@ class ConnectionScreen(AdaptiveModal):
 
     def _fill_ports(self) -> None:
         self._devices = available_ports()
-        # 虚拟回环设备：无需真实串口，所有发送的字节原样回显（调试用）
-        self._devices.append(("LOOPBACK", "虚拟回环（调试 - 纯回显）"))
+        # 虚拟回环设备：默认隐藏，仅 --enable-debug 调试模式下提供（无需真实串口，纯回显）
+        if getattr(self.app, "enable_debug", False):
+            self._devices.append(("LOOPBACK", "虚拟回环（调试 - 纯回显）"))
         if self._compact:
             select = self.query_one("#port-sel", FieldSelect)
             select.set_options([(dev, dev) for dev in self._device_names()])
