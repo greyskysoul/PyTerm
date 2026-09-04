@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyterm"
-version = "0.1.0"
+version = "1.0.0"
 description = "minicom-style cross-platform serial terminal with YMODEM file transfer (Windows + Linux)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "PyTerm" }]
 keywords = ["serial", "terminal", "ymodem", "minicom", "tui", "embedded"]

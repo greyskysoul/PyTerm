@@ -38,7 +38,7 @@ Screen {
     color: #c9d1d9;
     padding: 0 1;
     margin: 0;
-    content-align: center middle;
+    content-align: left middle;
 }
 
 #menu-btn:hover,
@@ -138,14 +138,10 @@ Static#help-title, Static#picker-title, Static#confirm-title {
     color: #7b869b;
 }
 
-/* 按钮另起一行并右对齐 */
+/* 按钮另起一行并左对齐 */
 #conn-buttons {
     margin-top: 1;
     height: auto;
-}
-
-#conn-fill {
-    width: 1fr;
 }
 
 #conn-error {
@@ -477,10 +473,12 @@ Vertical#confirm.compact {
     background: #141b2c;
 }
 
-/* 功能菜单紧凑布局：占满整屏，标题/提示固定，字段区占满剩余空间并允许滚动 */
+/* 功能菜单紧凑布局：占满整屏，标题/提示固定，字段区占满剩余空间并允许滚动；
+   最大宽度与标准模式一致（66 列），窗口较宽时菜单不会被拉得过宽 */
 Vertical#help-box.compact {
     height: 1fr;
     max-height: 100%;
+    max-width: 66;
     padding: 0 1;
 }
 

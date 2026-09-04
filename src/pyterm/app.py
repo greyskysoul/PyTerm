@@ -18,9 +18,9 @@ from typing import Any, ClassVar
 from rich.style import Style
 from rich.text import Text as RichText
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.containers import Container, Horizontal, Vertical
-from textual.events import Key
+from textual.events import Key, Paste
 from textual.widgets import Button, TextArea
 
 from pyterm import APP_NAME, __version__
@@ -242,6 +242,12 @@ class PyTermApp(App):
     TITLE = f"PyTerm v{__version__}"
     SUB_TITLE = "串口终端 - YMODEM"
 
+    # Ctrl+C 由 _on_key 直接发送 ^C 到串口；这里用一个空动作覆盖 Textual 默认的
+    # ctrl+c → help_quit（“按 ctrl+q 退出”提示），避免误触弹出退出提示。
+    BINDINGS: ClassVar[list[BindingType]] = [
+        Binding("ctrl+c", "noop", show=False, system=True),
+    ]
+
     def __init__(
         self,
         cfg: AppConfig | None = None,
@@ -438,7 +444,8 @@ class PyTermApp(App):
 
     def _connected_hint(self) -> str:
         name = "虚拟回环" if self._loopback else self.cfg.last.short()
-        return f"已连接 {name} · 直接键入即发送"
+        # 前后各留一行空行，让“已连接”提示在屏幕上更醒目
+        return f"\r\n已连接 {name}\r\n"
 
     def _print_local_hint(self, text: str) -> None:
         """排队一条本地提示（橙/粗体），等布局稳定后统一打印。
@@ -632,6 +639,10 @@ class PyTermApp(App):
         return "".join(out)
 
     # ==================================================================== key handling
+    def action_noop(self) -> None:
+        """Ctrl+C 由 _on_key 直接发送到串口（^C），此动作仅吞掉 Textual 默认的
+        “按 ctrl+q 退出”提示，不执行任何操作。"""
+
     async def _on_key(self, event: Key) -> None:
         # 任意键按下即关闭左侧的 toast 提示（未连接端口 / HEX 模式等）
         if self._notifications:
@@ -649,6 +660,15 @@ class PyTermApp(App):
         if event.key == "ctrl+a":
             event.stop()
             self._enter_prefix()
+            return
+        # 复制 / 粘贴（Ctrl+Shift+C / Ctrl+Shift+V）
+        if event.key == "ctrl+shift+c":
+            event.stop()
+            self._copy_selection()
+            return
+        if event.key == "ctrl+shift+v":
+            event.stop()
+            self._paste_clipboard()
             return
         if self.cfg.hex_mode:
             # 16 进制模式：主界面按键不再直接发送，只能经底部 16 进制框发送
@@ -670,6 +690,38 @@ class PyTermApp(App):
                 self._enter_presses = 0
         else:
             self._enter_presses = 0
+
+    # -- 复制 / 粘贴 ----------------------------------------------------------------
+    def _copy_selection(self) -> None:
+        """复制终端中选中的文本到剪贴板（Ctrl+Shift+C）。"""
+        text = self.screen.get_selected_text()
+        if text:
+            self.copy_to_clipboard(text)
+            self.notify(f"已复制 {len(text)} 字符")
+        else:
+            self.notify("没有选中的文本", severity="warning")
+
+    def _paste_clipboard(self) -> None:
+        """把剪贴板内容发送到串口（Ctrl+Shift+V）。"""
+        text = self.clipboard
+        if not text:
+            self.notify("剪贴板为空", severity="warning")
+            return
+        if not self.is_connected():
+            self._remind_connect()
+            return
+        self.send_bytes(text.encode(self.cfg.decode, "replace"))
+
+    def on_paste(self, event: Paste) -> None:
+        """终端粘贴（bracketed paste）：把粘贴内容发送到串口。"""
+        if len(self.screen_stack) > 1 or self.cfg.hex_mode:
+            return
+        if not event.text:
+            return
+        if not self.is_connected():
+            self._remind_connect()
+            return
+        self.send_bytes(event.text.encode(self.cfg.decode, "replace"))
 
     # -- Ctrl+A prefix model --------------------------------------------------------------
     def _enter_prefix(self) -> None:

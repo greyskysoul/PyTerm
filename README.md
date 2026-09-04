@@ -147,3 +147,8 @@ packaging/            PyInstaller 启动器与 spec
 1. Linux 与 lrzsz 交叉验证：`sz -Y file` 对 PyTerm 接收；`rz -Y` 对 PyTerm 发送
 2. Windows/Linux 双端可用 socat(pty)/com0com 虚拟串口做端到端回环
 3. STM32 bootloader 实机烧录建议 115200/921600 各验证一次大文件（SHA256 比对）
+
+## AI 声明
+
+本项目在开发过程中使用了 AI 编程助手（GitHub Copilot）辅助编写、审查与调试代码。
+所有代码均经过人工复核与自动化测试（pytest / ruff / mypy）验证。

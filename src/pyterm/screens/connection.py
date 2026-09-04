@@ -34,7 +34,6 @@ class _ConnRich(Vertical):
             yield Label("流控", classes="form-label")
             yield Input("", id="flow", placeholder="none / rtscts / xonxoff", compact=True)
         with Horizontal(id="conn-buttons"):
-            yield Static("", id="conn-fill")
             yield Button("刷新", id="refresh", compact=True)
             yield Button("连接", id="connect", variant="primary", compact=True)
             yield Button("返回", id="cancel", compact=True)
@@ -74,7 +73,6 @@ class _ConnCompact(Vertical):
                 yield Label("流控", classes="c-label")
                 yield Input("", id="flow", placeholder="none / rtscts / xonxoff", compact=True)
         with Horizontal(id="conn-buttons"):
-            yield Static("", id="conn-fill")
             yield Button("刷新", id="refresh", compact=True)
             yield Button("连接", id="connect", variant="primary", compact=True)
             yield Button("返回", id="cancel", compact=True)

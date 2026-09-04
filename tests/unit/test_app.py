@@ -364,9 +364,9 @@ async def test_options_checkboxes_use_circle_markers():
         assert "○" not in str(echo.render())
 
 
-async def test_connection_page_compact_and_right_aligned_buttons():
+async def test_connection_page_compact_and_left_aligned_buttons():
     """Connection inputs are single-line; buttons sit on their own row at the
-    right; the old 断开 button was replaced by 返回."""
+    left; the old 断开 button was replaced by 返回."""
     from pyterm.screens.connection import ConnectionScreen
 
     app = PyTermApp()
@@ -384,12 +384,13 @@ async def test_connection_page_compact_and_right_aligned_buttons():
         assert ids == ["refresh", "connect", "cancel"]
 
         row = scr.query_one("#conn-buttons")
-        last = scr.query_one("#cancel")
-        # buttons are flush against the right edge of their row
-        assert last.region.x + last.region.width == row.region.x + row.region.width
+        first = scr.query_one("#refresh")
+        # buttons are flush against the left edge of their row
+        assert first.region.x == row.region.x
 
         # 返回 closes the dialog
-        last.focus()
+        cancel = scr.query_one("#cancel")
+        cancel.focus()
         await pilot.pause(0.02)
         await pilot.press("enter")
         await pilot.pause(0.2)
@@ -766,16 +767,18 @@ async def test_loopback_echoes_cr_as_crlf():
 
         assert app.open_loopback() is None
         await pilot.pause(0.2)
-        # 连接成功后打印“已连接”提示
+        # 连接成功后打印“已连接”提示（前后各留一行空行）
         rows1 = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
-        assert "已连接" in rows1[1] and "虚拟回环" in rows1[1]
+        assert rows1[1] == ""  # 提示前空行
+        assert "已连接" in rows1[2] and "虚拟回环" in rows1[2]
+        assert rows1[3] == ""  # 提示后空行
 
         # "a\rb" echoes as "a\r\nb" -> a then b on consecutive lines (no blank row)
         app.send_bytes(b"a\rb")
         await pilot.pause(0.3)
         rows = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
-        assert rows[2] == "a"
-        assert rows[3] == "b"
+        assert rows[4] == "a"
+        assert rows[5] == "b"
         assert app._tx == 3
         assert app._rx == 4  # the lone \r is echoed as two bytes (\r\n)
 
@@ -1189,11 +1192,12 @@ async def test_connect_hint_shown_in_orange_bold():
         await pilot.pause(0.2)
 
         rows = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
-        # 第 0 行是启动菜单提示，第 1 行是“已连接”提示
+        # 第 0 行是启动菜单提示；第 1 行空行；第 2 行是“已连接”提示；第 3 行空行
         assert "按 Ctrl+A Z 打开功能菜单" in rows[0]
-        assert rows[1].startswith("已连接 虚拟回环")
-        assert "直接键入即发送" in rows[1]
-        line = app.model.screen_rows()[1]
+        assert rows[1] == ""
+        assert rows[2].startswith("已连接 虚拟回环")
+        assert rows[3] == ""
+        line = app.model.screen_rows()[2]
         c = next(x for x in line if x.data.strip())
         assert c.bold is True and c.fg == "ffa500"
         assert app._rx == 0 and app._tx == 0
@@ -1204,6 +1208,75 @@ async def test_connect_hint_shown_in_orange_bold():
         await pilot.pause(0.2)
         text = "".join(c.data for r in app.model.screen_rows() for c in r)
         assert "已连接" in text
+
+
+# --------------------------------------------------------------------------- Ctrl+C / 复制 / 粘贴
+
+
+async def test_ctrl_c_sends_break_no_quit_prompt():
+    """Ctrl+C 直接发送 ^C 到串口，不再弹出 Textual 的“退出？”提示。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+        app._tx = 0
+        app._rx = 0
+        await pilot.press("ctrl+c")
+        await pilot.pause(0.3)
+        assert app._tx == 1, "Ctrl+C 应发送一个字节 (^C)"
+        assert app._running is True, "Ctrl+C 不应退出程序"
+        assert len(app._notifications) == 0, "不应弹出“退出？”提示"
+
+
+async def test_ctrl_shift_c_copies_selection():
+    """Ctrl+Shift+C 把终端中选中的文本复制到剪贴板。"""
+    from textual.geometry import Offset
+    from textual.selection import Selection
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        app.model.clear()
+        app.model.feed_bytes(b"hello world\r\nsecond line")
+        app._view().mark_dirty()
+        await pilot.pause(0.2)
+        view = app._view()
+        app.screen.selections[view] = Selection(Offset(0, 0), Offset(5, 0))
+        await pilot.press("ctrl+shift+c")
+        await pilot.pause(0.2)
+        assert app.clipboard == "hello"
+
+
+async def test_ctrl_shift_v_pastes_clipboard():
+    """Ctrl+Shift+V 把剪贴板内容发送到串口。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+        app.copy_to_clipboard("AT\r")
+        app._tx = 0
+        app._rx = 0
+        await pilot.press("ctrl+shift+v")
+        await pilot.pause(0.3)
+        assert app._tx == 3, "粘贴内容应发送到串口"
+
+
+async def test_paste_event_sends_to_port():
+    """终端粘贴（bracketed paste）事件把内容发送到串口。"""
+    from textual.events import Paste
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause()
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+        app._tx = 0
+        app._rx = 0
+        app.post_message(Paste("hello"))
+        await pilot.pause(0.3)
+        assert app._tx == 5, "粘贴事件内容应发送到串口"
 
 
 # --------------------------------------------------------------------------- 功能菜单底部 about / 文案
