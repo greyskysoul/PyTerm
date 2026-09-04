@@ -19,7 +19,7 @@ from rich.style import Style
 from rich.text import Text as RichText
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, Vertical
 from textual.events import Key
 from textual.widgets import Button, TextArea
 
@@ -164,7 +164,7 @@ class _HexArea(TextArea):
         return sum(1 for ch in raw[:prefix] if ch in _HEX_DIGITS)
 
 
-class _HexBar(Horizontal):
+class _HexBar(Vertical):
     """Bottom 16-hex input bar; mounted only while HEX mode is on.
 
     Keeping it out of the DOM when HEX is off prevents hidden focusable widgets
@@ -174,6 +174,15 @@ class _HexBar(Horizontal):
     def compose(self) -> ComposeResult:
         yield _HexArea(id="hex-input")
         yield Button("发送", id="hex-send", compact=True)
+
+
+class _StatusMenuButton(Button, can_focus=False):
+    """Bottom-right "菜单" button on the main window.
+
+    Equivalent to Ctrl+A Z.  ``can_focus`` is disabled so it never steals the
+    keyboard focus: typed keys keep going straight to the serial port and the
+    Ctrl+A prefix handling is unaffected — the button is mouse-click only.
+    """
 
 
 _PREFIX_FUNCS = {
@@ -266,6 +275,10 @@ class PyTermApp(App):
         # 窗口宽度在 4/8/16/32 字节处连续换行）
         self._hex_row_bytes = 0
 
+        # 启动/连接时打印到终端的本地提示（橙/粗体），布局稳定后统一刷出
+        self._pending_hints: list[str] = []
+        self._hint_flush_pending = False
+
         # capture file
         self._capture_fh: Any = None
         self._cap_decoder: Any = None
@@ -285,7 +298,10 @@ class PyTermApp(App):
     def compose(self):
         with Container(id="term-root"):
             yield TerminalView(self.model, id="term")
-            yield StatusBar("", id="status")
+            with Horizontal(id="bottom"):
+                # “菜单”按钮在左下角；状态文字占满其余宽度
+                yield _StatusMenuButton("菜单", id="menu-btn")
+                yield StatusBar("", id="status")
 
     # ------------------------------------------------------ minimum-size guard
     def _terminal_too_small(self) -> bool:
@@ -328,6 +344,8 @@ class PyTermApp(App):
     def _bootstrap(self) -> None:
         self._view().focus()
         self.apply_config()
+        # 程序一启动就打印菜单快捷键提示（无论是否连接端口）
+        self._print_startup_hint()
         if self.cli_conn is not None:
             err = self.open_serial(self.cli_conn)
             if err:
@@ -398,6 +416,7 @@ class PyTermApp(App):
             save_config(self.cfg)
             self._last_rx = time.monotonic()
             self._enter_presses = 0
+            self._print_local_hint(self._connected_hint())
             self._refresh_status()
         return err
 
@@ -410,8 +429,61 @@ class PyTermApp(App):
         self._loopback = True
         self._last_rx = time.monotonic()
         self._enter_presses = 0
+        self._print_local_hint(self._connected_hint())
         self._refresh_status()
         return None
+
+    # --------------------------------------------- 屏幕上的本地提示（橙/粗体）
+    _STARTUP_HINT = "按 Ctrl+A Z 打开功能菜单"
+
+    def _connected_hint(self) -> str:
+        name = "虚拟回环" if self._loopback else self.cfg.last.short()
+        return f"已连接 {name} · 直接键入即发送"
+
+    def _print_local_hint(self, text: str) -> None:
+        """排队一条本地提示（橙/粗体），等布局稳定后统一打印。
+
+        本地提示不计入 TX/RX、不写入捕获文件；HEX 模式下不打印。延迟一小
+        帧再刷出，避免启动阶段的首次布局/缩放把刚写入的提示清掉。
+        """
+        if self.cfg.hex_mode:
+            return
+        self._pending_hints.append(text)
+        self._schedule_hint_flush()
+
+    def _schedule_hint_flush(self) -> None:
+        if self._hint_flush_pending:
+            return
+        self._hint_flush_pending = True
+        try:
+            self.set_timer(0.05, self._flush_hints)
+        except Exception:
+            self._hint_flush_pending = False
+
+    def _flush_hints(self) -> None:
+        self._hint_flush_pending = False
+        if not self._pending_hints:
+            return
+        pending = self._pending_hints
+        self._pending_hints = []
+        data = b"".join(
+            f"\x1b[1m\x1b[38;2;255;165;0m{t}\x1b[0m\r\n".encode(
+                self.model.decode, "replace"
+            )
+            for t in pending
+        )
+        self.model.feed_bytes(data)
+        with contextlib.suppress(Exception):
+            self._view().mark_dirty()
+
+    def _flush_hints_now(self) -> None:
+        """在发送/显示真实串口内容前立即刷出尚未打印的本地提示，保证提示
+        总是先于设备回显/接收数据出现。"""
+        self._flush_hints()
+
+    def _print_startup_hint(self) -> None:
+        """程序启动即显示菜单快捷键提示（无论有没有连接端口）。"""
+        self._print_local_hint(self._STARTUP_HINT)
 
     _NO_PORT_MSG = "未连接端口：请按 Ctrl+A P 连接后再试"
 
@@ -420,8 +492,8 @@ class PyTermApp(App):
         self.notify(self._NO_PORT_MSG, severity="warning", timeout=6)
 
     # ------------------------------------------------------------- HEX send/recv bar
-    def _hex_bar(self) -> Horizontal:
-        return self.query_one("#hex-bar", Horizontal)
+    def _hex_bar(self) -> Vertical:
+        return self.query_one("#hex-bar", Vertical)
 
     def _sync_hex_ui(self) -> None:
         """Mount the hex input row only while HEX mode is on; remove it when off.
@@ -431,13 +503,18 @@ class PyTermApp(App):
         if self.cfg.hex_mode:
             if not present:
                 self._hex_row_bytes = 0  # 重新进入 HEX 模式：从头开始计行
-                self.query_one("#term-root").mount(_HexBar(id="hex-bar"), before="#status")
+                self.query_one("#term-root").mount(_HexBar(id="hex-bar"), before="#bottom")
         elif present:
             with contextlib.suppress(Exception):
-                self.query_one("#hex-bar", Horizontal).remove()
+                self.query_one("#hex-bar", Vertical).remove()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id != "hex-send":
+        button_id = event.button.id
+        if button_id == "menu-btn":
+            event.stop()
+            self.push_screen(MainMenuScreen())
+            return
+        if button_id != "hex-send":
             return
         event.stop()
         self._send_hex_box()
@@ -471,6 +548,7 @@ class PyTermApp(App):
     def send_bytes(self, data: bytes) -> bool:
         """Transmit bytes.  On the virtual loopback the data is echoed back as
         RX (a pure loopback device), otherwise it goes to the real port."""
+        self._flush_hints_now()  # 先打印待刷出的本地提示
         if not data:
             return False
         if self._loopback:
@@ -506,6 +584,7 @@ class PyTermApp(App):
             self.call_from_thread(self._rx_to_terminal, data)
 
     def _rx_to_terminal(self, data: bytes) -> None:
+        self._flush_hints_now()  # 接收数据显示前先打印待刷出的本地提示
         self._write_capture(data)
         self._last_rx = time.monotonic()
         if self.cfg.hex_mode:
@@ -556,6 +635,9 @@ class PyTermApp(App):
 
     # ==================================================================== key handling
     async def _on_key(self, event: Key) -> None:
+        # 任意键按下即关闭左侧的 toast 提示（未连接端口 / HEX 模式等）
+        if self._notifications:
+            self.clear_notifications()
         if len(self.screen_stack) > 1:
             # A modal is on top: its widgets / screen bindings have already
             # processed this key.  Do NOT fall through to app-level bindings —
@@ -716,7 +798,8 @@ class PyTermApp(App):
         elif self.cfg.hex_mode:
             right = "HEX：底部输入，点发送"
         else:
-            right = "Ctrl+A Z 菜单"
+            # Ctrl+A Z 提示已改为右下角的“菜单”按钮，状态栏不再重复显示
+            right = ""
         mid = "  ".join(flags)
         return f" {conn} | {state} | {mid}".rstrip(" |") + (f"    {right}" if right else "")
 

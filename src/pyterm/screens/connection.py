@@ -46,7 +46,7 @@ class _ConnCompact(Vertical):
     inside a scroll area, plus the port list shown as a dropdown."""
 
     def compose(self) -> ComposeResult:
-        yield Static("串口连接 - 简洁模式", id="conn-title")
+        yield Static("串口连接参数", id="conn-title")
         with VerticalScroll(id="conn-body"):
             with Horizontal(classes="c-row"):
                 yield Label("端口", classes="c-label")
@@ -85,9 +85,10 @@ class ConnectionScreen(AdaptiveModal):
     """List detected ports, edit parameters and connect."""
 
     ROOT_ID = "conn-box"
-    # 富布局需要约 84 列与端口表 + 字段的总高度；更小则自动切到简洁模式
+    # 富布局（端口表 + 参数行）在高度 <30 时已放不下、无法使用，因此低于
+    # 该高度（或宽度 <84）就自动切到可滚动的简洁模式。
     MIN_WIDTH = 84
-    MIN_HEIGHT = 26
+    MIN_HEIGHT = 30
 
     def __init__(self) -> None:
         super().__init__()

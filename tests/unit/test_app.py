@@ -519,10 +519,11 @@ async def test_hex_receive_multiline_wraps_to_line_start():
     adapts to the display width and each wrapped line must start at column 0
     (format_hex's LF separator is sent as CR+LF, otherwise a bare LF makes every
     subsequent line drift right like a staircase)."""
-    app = PyTermApp()
+    from pyterm.config import AppConfig
+
+    app = PyTermApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
-        app.cfg.hex_mode = True
         per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
         app._rx_to_terminal(bytes(range(per_line + 1)))  # 一整行 + 1 字节
         await pilot.pause(0.3)
@@ -540,10 +541,11 @@ async def test_hex_receive_multiline_wraps_to_line_start():
 async def test_hex_receive_does_not_break_on_cr_lf_bytes():
     """HEX 接收时真实的 0A/0D 字节只是普通数据，显示为 "0A"/"0D"，
     不应像文本模式那样在换行字节处断行——只按字节数分组换行。"""
-    app = PyTermApp()
+    from pyterm.config import AppConfig
+
+    app = PyTermApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
-        app.cfg.hex_mode = True
         app._rx_to_terminal(b"AB\r\nCD")  # 含真实 CR/LF（0D 0A）
         await pilot.pause(0.3)
         rows = [
@@ -557,10 +559,11 @@ async def test_hex_receive_does_not_break_on_cr_lf_bytes():
 async def test_hex_receive_wraps_across_small_chunks():
     """连续到达的多个小块也要严格按“每行 N 字节”换行（与发送区一致的连续
     自动换行），而不是每个块各自排版、长期堆在同一行不换行。"""
-    app = PyTermApp()
+    from pyterm.config import AppConfig
+
+    app = PyTermApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
-        app.cfg.hex_mode = True
         per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
         # 每块只发 2 字节，但累计超过 per_line 字节后必须发生换行
         chunk = b"\xaa\xbb"
@@ -760,15 +763,25 @@ async def test_loopback_echoes_cr_as_crlf():
     terminal), so Enter starts a new line instead of overwriting it."""
     app = PyTermApp()
     async with app.run_test(size=(100, 28)) as pilot:
-        await pilot.pause()
-        assert app.open_loopback() is None
+        await pilot.pause(0.3)
 
-        # "a\rb" echoes as "a\r\nb" -> a on line 0, b on line 1 (no blank row)
+        # 程序一启动就打印菜单快捷键提示（本地打印，不计入 RX 计数）
+        rows0 = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
+        assert "按 Ctrl+A Z 打开功能菜单" in rows0[0]
+        assert app._tx == 0 and app._rx == 0
+
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+        # 连接成功后打印“已连接”提示
+        rows1 = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
+        assert "已连接" in rows1[1] and "虚拟回环" in rows1[1]
+
+        # "a\rb" echoes as "a\r\nb" -> a then b on consecutive lines (no blank row)
         app.send_bytes(b"a\rb")
         await pilot.pause(0.3)
         rows = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
-        assert rows[0] == "a"
-        assert rows[1] == "b"
+        assert rows[2] == "a"
+        assert rows[3] == "b"
         assert app._tx == 3
         assert app._rx == 4  # the lone \r is echoed as two bytes (\r\n)
 
@@ -1016,6 +1029,222 @@ async def test_connection_compact_on_small_window_and_connect():
         assert len(app.screen_stack) == 1, "dialog dismissed after connect"
 
 
+# --------------------------------------------------------------------------- 简洁模式自动切换阈值
+
+
+async def test_connection_compact_threshold_is_30_rows():
+    """连接页富布局在高度 <30 时自动切换为简洁模式（30 行及以上保持富布局）。"""
+    from pyterm.screens.connection import ConnectionScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 29)) as pilot:
+        await pilot.pause(0.2)
+        app.push_screen(ConnectionScreen())
+        await pilot.pause(0.4)
+        assert app.screen_stack[-1].query_one("#conn-box").has_class("compact") is True
+        await pilot.resize_terminal(100, 30)
+        await pilot.pause(0.4)
+        assert app.screen_stack[-1].query_one("#conn-box").has_class("compact") is False
+
+
+async def test_options_compact_threshold_is_27_rows():
+    """选项页富布局在高度 <27 时自动切换为简洁模式（27 行及以上保持富布局）。"""
+    from pyterm.screens.options import OptionsScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 26)) as pilot:
+        await pilot.pause(0.2)
+        app.push_screen(OptionsScreen())
+        await pilot.pause(0.4)
+        assert app.screen_stack[-1].query_one("#options-box").has_class("compact") is True
+        await pilot.resize_terminal(100, 27)
+        await pilot.pause(0.4)
+        assert app.screen_stack[-1].query_one("#options-box").has_class("compact") is False
+
+
+async def test_compact_controls_start_at_the_same_column():
+    """简洁模式下输入框与下拉框从同一列开始且等宽，不再参差不齐。"""
+    from pyterm.screens.options import OptionsScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 24)) as pilot:
+        await pilot.pause(0.2)
+        app.push_screen(OptionsScreen())
+        await pilot.pause(0.4)
+        scr = app.screen_stack[-1]
+        assert scr.query_one("#options-box").has_class("compact") is True
+        xs = [scr.query_one(f"#{cid}").region.x for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")]
+        widths = [scr.query_one(f"#{cid}").region.width for cid in ("enter", "back", "decode", "timeout", "retries", "blocksize")]
+        assert len(set(xs)) == 1, f"控件左缘未对齐: {xs}"
+        assert len(set(widths)) == 1, f"控件宽度不一致: {widths}"
+
+
+async def test_main_menu_compact_threshold_is_30_rows():
+    """功能菜单（含 about 两行与左下“返回”按钮）富布局在高度 <30 时自动切换
+    为简洁模式（30 行及以上保持富布局）。"""
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 29)) as pilot:
+        await pilot.pause(0.2)
+        app.push_screen(MainMenuScreen())
+        await pilot.pause(0.3)
+        assert app.screen_stack[-1].query_one("#help-box").has_class("compact") is True
+        await pilot.resize_terminal(100, 30)
+        await pilot.pause(0.3)
+        assert app.screen_stack[-1].query_one("#help-box").has_class("compact") is False
+
+
+async def test_notifications_cleared_by_any_key():
+    """未连接端口 / HEX 模式等 toast 提示放在左侧显示，按下任意键即关闭。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause(0.2)
+        app.notify("未连接端口：请按 Ctrl+A P 连接后再试", timeout=60)
+        await pilot.pause(0.1)
+        assert len(app._notifications) == 1
+        await pilot.press("a")
+        await pilot.pause(0.2)
+        assert len(app._notifications) == 0, "任意键应关闭 toast 提示"
+
+
+async def test_toast_renders_at_bottom_left():
+    """toast（未连接端口 / HEX 模式等）在屏幕左下角显示（ToastHolder 左对齐）。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28), notifications=True) as pilot:
+        await pilot.pause(0.3)
+        app.notify("未连接端口：请按 Ctrl+A P 连接后再试", severity="warning", timeout=60)
+        await pilot.pause(0.5)
+        toast = next(w for w in app.screen.walk_children() if type(w).__name__ == "Toast")
+        # 左对齐：toast 左缘靠近屏幕左缘；位于屏幕底部区域
+        assert toast.region.x <= 2
+        assert toast.region.y >= 20
+        # 任意键关闭
+        await pilot.press("a")
+        await pilot.pause(0.2)
+        assert len(app._notifications) == 0
+
+
+# --------------------------------------------------------------------------- 左下角“菜单”按钮 + 启动/连接提示
+
+
+async def test_main_screen_menu_button_bottom_left_opens_menu():
+    """主界面左下角的“菜单”按钮；点击打开同一功能菜单，
+    且按钮不抢占键盘焦点（can_focus=False）。"""
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause(0.2)
+        btn = app.query_one("#menu-btn")
+        assert btn.can_focus is False  # 只响应鼠标，不让按键焦点离开终端
+        assert "菜单" in str(btn.render())
+        bottom = app.query_one("#bottom")
+        # 位于最底行、紧贴左缘
+        assert bottom.region.y + bottom.region.height == app.size.height
+        assert btn.region.y == bottom.region.y and btn.region.height == 1
+        assert btn.region.x == bottom.region.x
+        # 状态栏不再重复显示“Ctrl+A Z”文字提示（交给按钮 + 启动首行提示）
+        assert "Ctrl+A Z" not in app._status_text()
+
+        # 点击打开主菜单（与 Ctrl+A Z 等价）
+        await pilot.click("#menu-btn")
+        await pilot.pause(0.3)
+        assert len(app.screen_stack) == 2
+        assert isinstance(app.screen_stack[-1], MainMenuScreen)
+
+
+async def test_startup_hint_shown_without_connection():
+    """程序一启动（无论是否连接端口）就在终端首行显示橙/粗体的菜单快捷键提示。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause(0.2)
+        assert app.is_connected() is False  # 没有连接端口
+        row = app.model.screen_rows()[0]
+        text = "".join(c.data for c in row).rstrip()
+        assert "按 Ctrl+A Z 打开功能菜单" in text
+        c = next(x for x in row if x.data.strip())
+        assert c.bold is True and c.fg == "ffa500"  # 橙色加粗
+        assert app._rx == 0 and app._tx == 0  # 本地提示不是串口收发
+
+
+async def test_connect_hint_shown_in_orange_bold():
+    """连接上端口后在屏幕上打印“已连接”提示（橙/粗体），每次连接都会打印。"""
+    app = PyTermApp()
+    async with app.run_test(size=(100, 28)) as pilot:
+        await pilot.pause(0.3)
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+
+        rows = ["".join(c.data for c in r).rstrip() for r in app.model.screen_rows()]
+        # 第 0 行是启动菜单提示，第 1 行是“已连接”提示
+        assert "按 Ctrl+A Z 打开功能菜单" in rows[0]
+        assert rows[1].startswith("已连接 虚拟回环")
+        assert "直接键入即发送" in rows[1]
+        line = app.model.screen_rows()[1]
+        c = next(x for x in line if x.data.strip())
+        assert c.bold is True and c.fg == "ffa500"
+        assert app._rx == 0 and app._tx == 0
+
+        # 清屏后再次连接仍会打印“已连接”提示
+        app.model.clear()
+        assert app.open_loopback() is None
+        await pilot.pause(0.2)
+        text = "".join(c.data for r in app.model.screen_rows() for c in r)
+        assert "已连接" in text
+
+
+# --------------------------------------------------------------------------- 功能菜单底部 about / 文案
+
+
+async def test_main_menu_shows_about_and_clean_copy():
+    """菜单底部显示版本/作者/GitHub，条目去掉冗余括号说明（仅保留 YMODEM）。"""
+    from pyterm import PROJECT_AUTHOR, PROJECT_URL, __version__
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        app.push_screen(MainMenuScreen())
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        assert str(scr.query_one("#help-repo").render()) == PROJECT_URL
+        about = str(scr.query_one("#help-about").render())
+        assert __version__ in about and PROJECT_AUTHOR in about
+        # 不再出现冗余括号说明；(YMODEM) 仅在 发送/接收 两项保留
+        plain = ("z", "c", "l", "h", "p", "o", "x")
+        for key in plain:
+            label = str(scr.query_one(f"#menu-{key}").render())
+            assert "（" not in label and "(" not in label and ")" not in label
+        for key in ("s", "r"):
+            label = str(scr.query_one(f"#menu-{key}").render())
+            assert "（" not in label and "YMODEM" in label
+
+
+async def test_main_menu_back_button_bottom_left_closes():
+    """菜单页面左下角有“返回”按钮，点击后回到主界面。"""
+    from pyterm.screens.help import MainMenuScreen
+
+    app = PyTermApp()
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        app.push_screen(MainMenuScreen())
+        await pilot.pause(0.2)
+        scr = app.screen_stack[-1]
+        back = scr.query_one("#menu-back")
+        assert "返回" in str(back.render())
+        box = scr.query_one("#help-box")
+        repo = scr.query_one("#help-repo")
+        # 位于菜单框底部、与底部文案同一左缘（左下角）
+        assert back.region.y >= repo.region.y
+        assert back.region.x == repo.region.x
+        assert back.region.right <= box.region.right
+
+        await pilot.click("#menu-back")
+        await pilot.pause(0.3)
+        assert len(app.screen_stack) == 1, "返回应关闭功能菜单"
+
+
 # --------------------------------------------------------------------------- --bare CLI
 
 
@@ -1091,6 +1320,14 @@ async def test_help_menu_compact_on_small_window_stays_usable():
             await pilot.press("down")
             await pilot.pause(0.01)
         assert app.focused.id == "menu-x"
+
+        # 再往下可聚焦到左下角“返回”按钮，Enter 关闭菜单
+        await pilot.press("down")
+        await pilot.pause(0.01)
+        assert app.focused.id == "menu-back"
+        await pilot.press("enter")
+        await pilot.pause(0.2)
+        assert len(app.screen_stack) == 1
 
 
 async def test_confirm_dialog_stays_boxed_on_large_window():

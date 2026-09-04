@@ -68,8 +68,7 @@ class _OptionsRich(Vertical):
     def compose(self) -> ComposeResult:
         yield Static("选项设置", id="options-title")
         with VerticalScroll(id="options-body"):
-            for checkbox in _circle_fields():
-                yield checkbox
+            yield from _circle_fields()
             with Horizontal(classes="form-row"):
                 yield Label("回车发送", classes="form-label")
                 yield FieldSelect(_ENTER_OPTIONS, id="enter", allow_blank=False, compact=True)
@@ -95,10 +94,9 @@ class _OptionsCompact(Vertical):
     row, inside a scroll area so very short windows stay usable."""
 
     def compose(self) -> ComposeResult:
-        yield Static("选项设置 - 简洁模式", id="options-title")
+        yield Static("选项设置", id="options-title")
         with VerticalScroll(id="options-body"):
-            for checkbox in _circle_fields():
-                yield checkbox
+            yield from _circle_fields()
             yield from _field_row(
                 "回车发送", FieldSelect(_ENTER_OPTIONS, id="enter", allow_blank=False, compact=True)
             )
@@ -120,9 +118,10 @@ class OptionsScreen(AdaptiveModal):
     """Edit persisted options; on save they are applied immediately."""
 
     ROOT_ID = "options-box"
-    # 富布局需要约 84 列（盒子宽 80 + 左右留白）与足够行高；更小则自动切到简洁模式
+    # 富布局在高度 <27 时已放不下、无法使用，因此低于该高度（或宽度 <84）
+    # 就自动切到可滚动的简洁模式。
     MIN_WIDTH = 84
-    MIN_HEIGHT = 22
+    MIN_HEIGHT = 27
 
     def build_rich(self) -> Vertical:
         return _OptionsRich(id=self.ROOT_ID)

@@ -15,12 +15,37 @@ Screen {
     padding: 0;
 }
 
+/* 底部一行：状态文字 + 左下角“菜单”按钮（仅鼠标点击，不抢键盘焦点） */
+#bottom {
+    height: 1;
+    background: #161b29;
+}
+
 #status {
+    width: 1fr;
     height: 1;
     background: #161b29;
     color: #8b949e;
     text-style: bold;
     padding: 0 1;
+}
+
+#menu-btn {
+    height: 1;
+    min-width: 7;
+    border: none;
+    background: #232b40;
+    color: #c9d1d9;
+    padding: 0 1;
+    margin: 0;
+    content-align: center middle;
+}
+
+#menu-btn:hover,
+#menu-btn:focus {
+    background: #2f3a58;
+    color: #ffffff;
+    text-style: bold;
 }
 
 /* --- 16 进制接收/发送输入条（仅在 HEX 模式开启时挂载） ----------------------- */
@@ -46,8 +71,8 @@ Screen {
 }
 
 #hex-bar Button {
-    min-width: 8;
-    margin-left: 1;
+    width: auto;
+    margin-top: 1;
 }
 
 /* --- generic modal box ------------------------------------------------------ */
@@ -169,6 +194,23 @@ Vertical#options-box, Vertical#conn-box {
 
 #help-footer {
     color: #8b949e;
+}
+
+/* 菜单底部：版本 / 作者 / GitHub 仓库提示 */
+#help-about {
+    margin-top: 1;
+}
+
+#help-about,
+#help-repo {
+    color: #5f6b7c;
+}
+
+/* 菜单左下角“返回”按钮 */
+#menu-back {
+    width: auto;
+    min-width: 10;
+    margin-top: 1;
 }
 
 /* --- options ------------------------------------------------------------------ */
@@ -338,10 +380,10 @@ Vertical#conn-box.compact #conn-body {
 }
 
 .compact .c-label {
-    width: auto;
+    width: 12; /* 各行列标签定宽右对齐，输入框/下拉框从同一列开始 */
     min-width: 0;
     color: #9da5b4;
-    content-align: left middle;
+    content-align: right middle;
     margin-right: 2;
 }
 
@@ -456,4 +498,17 @@ Vertical#confirm.compact {
 
 Vertical#confirm.compact #confirm-message {
     margin: 1 0;
+}
+
+/* === 通知提示（toast）========================================================
+   未连接端口 / HEX 模式等提示默认弹在右下角，会盖住状态区；这里把它们移到
+   左下角显示。Toast 由 Textual 内部挂载：ToastRack 控制整叠位置，真正的横向
+   对齐在 ToastHolder 上（width:1fr + align:right），所以两者都要覆盖。
+   任意键关闭在 app.py 的 _on_key 里通过 clear_notifications() 处理。 */
+ToastRack {
+    align: left bottom;
+}
+
+ToastHolder {
+    align: left top;
 }
