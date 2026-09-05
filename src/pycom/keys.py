@@ -7,7 +7,7 @@ canonical key string (``event.key``) plus the printable character
 
 from __future__ import annotations
 
-from pyterm.config import AppConfig
+from pycom.config import AppConfig
 
 
 # Control byte for ctrl+<letter>

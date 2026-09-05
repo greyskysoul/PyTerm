@@ -6,7 +6,7 @@ import io
 import queue
 import threading
 
-from pyterm.xfer.ymodem import (
+from pycom.xfer.ymodem import (
     SOH,
     STX,
     YModemEngine,

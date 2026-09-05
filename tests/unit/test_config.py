@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-import pyterm.config as cfgmod
-from pyterm.config import AppConfig, ConnectionSettings
+import pycom.config as cfgmod
+from pycom.config import AppConfig, ConnectionSettings
 
 
 @pytest.fixture

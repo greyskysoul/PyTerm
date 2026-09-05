@@ -9,9 +9,9 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Select, Static
 
-from pyterm.config import ConnectionSettings
-from pyterm.screens.base import AdaptiveModal, FieldSelect
-from pyterm.serialio import available_ports
+from pycom.config import ConnectionSettings
+from pycom.screens.base import AdaptiveModal, FieldSelect
+from pycom.serialio import available_ports
 
 
 class _ConnRich(Vertical):

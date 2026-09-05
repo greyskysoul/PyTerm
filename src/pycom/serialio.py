@@ -13,7 +13,7 @@ import contextlib
 import threading
 from collections.abc import Callable
 
-from pyterm.config import ConnectionSettings
+from pycom.config import ConnectionSettings
 
 try:
     import serial
@@ -82,7 +82,7 @@ class SerialManager:
         with contextlib.suppress(Exception):
             ser.dtr = settings.dtr
             ser.rts = settings.rts
-        self._thread = threading.Thread(target=self._pump, name="pyterm-serial", daemon=True)
+        self._thread = threading.Thread(target=self._pump, name="pycom-serial", daemon=True)
         self._thread.start()
         return None
 

@@ -27,7 +27,7 @@ jobs:
       - name: Format (ruff)
         run: ruff format --check src tests
       - name: Types (mypy)
-        run: mypy src/pyterm
+        run: mypy src/pycom
       - name: Unit tests
         run: pytest tests/unit -q
 
@@ -38,9 +38,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: pyterm-windows
+            artifact: pycom-windows
           - os: ubuntu-latest
-            artifact: pyterm-linux
+            artifact: pycom-linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +62,11 @@ jobs:
             sudo apt-get update && sudo apt-get install -y upx-ucl
           fi
       - name: Build binary
-        run: pyinstaller --noconfirm packaging/pyterm.spec
+        run: pyinstaller --noconfirm packaging/pycom.spec
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/pyterm*
+          path: dist/pycom*
 
   release:
     needs: build

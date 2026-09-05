@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from pyterm.config import AppConfig
-from pyterm.keys import (
+from pycom.config import AppConfig
+from pycom.keys import (
     KeyMapper,
     decode_escapes,
     format_hex,

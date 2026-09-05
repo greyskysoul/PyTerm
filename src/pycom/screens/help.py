@@ -9,8 +9,8 @@ from textual.containers import Vertical, VerticalScroll
 from textual.events import Key
 from textual.widgets import Button, Label, Static
 
-from pyterm import PROJECT_AUTHOR, PROJECT_URL, __version__
-from pyterm.screens.base import ResponsiveCompact
+from pycom import PROJECT_AUTHOR, PROJECT_URL, __version__
+from pycom.screens.base import ResponsiveCompact
 
 # 菜单文案：只保留简洁功能名，去掉冗余的括号说明（YMODEM 用于标明传输协议）
 MENU_ITEMS = [
@@ -53,11 +53,11 @@ class MainMenuScreen(ResponsiveCompact):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-box"):
-            yield Static("PyTerm - Ctrl+A 功能菜单", id="help-title")
+            yield Static("PyCom - Ctrl+A 功能菜单", id="help-title")
             with VerticalScroll(id="help-body"):
                 yield from _menu_body()
             yield Label("方向键选择；Enter 或功能字母执行；Esc 关闭", id="help-footer")
-            yield Label(f"PyTerm v{__version__} · {PROJECT_AUTHOR}", id="help-about")
+            yield Label(f"PyCom v{__version__} · {PROJECT_AUTHOR}", id="help-about")
             yield Label(PROJECT_URL, id="help-repo")
             yield Button("返回", id="menu-back", compact=True)
 

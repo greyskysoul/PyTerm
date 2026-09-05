@@ -8,7 +8,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DirectoryTree, Static
 
-from pyterm.screens.base import ModalBase
+from pycom.screens.base import ModalBase
 
 
 class PathPicker(ModalBase):

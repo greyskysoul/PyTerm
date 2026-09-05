@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pyterm.termdisplay.vt import TerminalModel
+from pycom.termdisplay.vt import TerminalModel
 
 
 def _text(rows) -> list[str]:

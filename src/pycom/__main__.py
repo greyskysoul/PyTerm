@@ -1,4 +1,4 @@
-"""PyInstaller entry point: ``pycom`` console binary."""
+"""Allow `python -m pycom`."""
 
 from pycom.app import main
 

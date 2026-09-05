@@ -6,12 +6,12 @@ import time
 
 import pytest
 
-from pyterm.app import PyTermApp
-from pyterm.keys import hex_bytes_per_line
+from pycom.app import PyComApp
+from pycom.keys import hex_bytes_per_line
 
 
 async def test_app_starts_and_renders_device_output():
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         # simulate device output
@@ -24,7 +24,7 @@ async def test_app_starts_and_renders_device_output():
 
 
 async def test_ctrl_a_prefix_opens_menu():
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert len(app.screen_stack) == 1
@@ -41,7 +41,7 @@ async def test_ctrl_a_prefix_opens_menu():
 
 
 async def test_prefix_cancel_with_escape():
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         await pilot.press("ctrl+a")
@@ -52,7 +52,7 @@ async def test_prefix_cancel_with_escape():
 
 
 async def test_quit_confirm_can_be_cancelled():
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         await pilot.press("ctrl+a")
@@ -68,9 +68,9 @@ async def test_quit_confirm_can_be_cancelled():
 
 async def test_tab_in_modal_steps_one_widget_at_a_time():
     """Regression: Tab used to move focus by TWO widgets inside modals."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -96,9 +96,9 @@ async def test_arrows_navigate_between_fields_in_modal():
     Previously the arrow keys did nothing inside modals (unless a widget like
     an Input or DataTable happened to own them).
     """
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -117,9 +117,9 @@ async def test_arrows_navigate_between_fields_in_modal():
 
 
 async def test_checkbox_toggles_with_left_right_arrows():
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -140,9 +140,9 @@ async def test_checkbox_toggles_with_left_right_arrows():
 
 async def test_arrows_inside_input_do_not_move_focus():
     """While typing in an Input the arrows edit the text, not the focus."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -165,9 +165,9 @@ async def test_arrows_inside_input_do_not_move_focus():
 async def test_dropdown_arrows_navigate_and_enter_selects_value():
     """选项页下拉框：折叠时方向键用于移动字段焦点（不打开菜单），
     Enter 打开菜单、方向键高亮、Enter 确认并自动关闭。"""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -218,10 +218,10 @@ async def test_dropdown_arrows_navigate_and_enter_selects_value():
 
 async def test_help_menu_arrows_select_and_enter_runs():
     """Main menu rows are selectable: arrows move, Enter runs the item."""
-    from pyterm.screens.help import MainMenuScreen
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.help import MainMenuScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -241,10 +241,10 @@ async def test_help_menu_arrows_select_and_enter_runs():
 
 async def test_help_menu_letter_key_still_runs():
     """Pressing the function letter on the main menu runs it immediately."""
-    from pyterm.screens.help import MainMenuScreen
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.help import MainMenuScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -256,12 +256,12 @@ async def test_help_menu_letter_key_still_runs():
 
 
 async def test_confirm_dialog_arrows_move_between_buttons():
-    from pyterm.screens.base import ConfirmDialog
+    from pycom.screens.base import ConfirmDialog
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 24)) as pilot:
         await pilot.pause()
-        app.push_screen(ConfirmDialog("退出", "确定要退出 PyTerm 吗？"))
+        app.push_screen(ConfirmDialog("退出", "确定要退出 PyCom 吗？"))
         await pilot.pause(0.2)
         assert app.focused.id == "yes"
         await pilot.press("down")
@@ -271,9 +271,9 @@ async def test_confirm_dialog_arrows_move_between_buttons():
 
 async def test_datatable_arrows_step_one_row_at_a_time():
     """Regression: arrow keys used to skip every other DataTable row."""
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(ConnectionScreen())
@@ -297,9 +297,9 @@ async def test_datatable_arrows_step_one_row_at_a_time():
 async def test_connect_success_refreshes_status_bar():
     """Regression: successful connect called the non-existent
     ``app.refresh_status`` and crashed with AttributeError."""
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
 
@@ -324,9 +324,9 @@ async def test_connect_success_refreshes_status_bar():
 async def test_options_autofocuses_first_checkbox():
     """Entering the options dialog must focus the first item so the arrow
     keys work immediately (no need to Tab first)."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -342,9 +342,9 @@ async def test_options_autofocuses_first_checkbox():
 async def test_options_checkboxes_use_circle_markers():
     """Options checkboxes render a hollow circle when off and a solid
     circle when on instead of the default X marker."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
         app.push_screen(OptionsScreen())
@@ -367,9 +367,9 @@ async def test_options_checkboxes_use_circle_markers():
 async def test_connection_page_compact_and_left_aligned_buttons():
     """Connection inputs are single-line; buttons sit on their own row at the
     left; the old 断开 button was replaced by 返回."""
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 34)) as pilot:
         await pilot.pause()
         app.push_screen(ConnectionScreen())
@@ -402,7 +402,7 @@ async def test_connection_page_compact_and_left_aligned_buttons():
 
 async def test_enter_thrice_without_port_shows_reminder():
     """Pressing Enter 3 times with no port connected pops a reminder."""
-    app = PyTermApp()
+    app = PyComApp()
     notes: list[str] = []
 
     async with app.run_test(size=(100, 28)) as pilot:
@@ -423,7 +423,7 @@ async def test_enter_thrice_without_port_shows_reminder():
 async def test_hex_menu_toggle_mounts_and_removes_bar():
     """HEX off -> no hex widgets in the DOM at all (so combos keep working);
     HEX on -> the bottom bar is mounted; toggling off removes it again."""
-    app = PyTermApp()
+    app = PyComApp()
     mapper_calls: list[str] = []
 
     async with app.run_test(size=(100, 28)) as pilot:
@@ -467,7 +467,7 @@ async def test_hex_menu_toggle_mounts_and_removes_bar():
 
 async def test_hex_editor_autoformats_and_rejects_invalid():
     """The hex editor adds a space after every byte and strips non-hex input."""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await pilot.press("ctrl+a")
@@ -490,7 +490,7 @@ async def test_hex_editor_autoformats_and_rejects_invalid():
 
 
 async def test_hex_receive_displays_hex_text():
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         app.cfg.hex_mode = True
@@ -502,7 +502,7 @@ async def test_hex_receive_displays_hex_text():
 async def test_hex_receive_separates_rx_chunks():
     """Two separately received chunks must not merge their boundary bytes
     (last byte of chunk 1 and first byte of chunk 2 keep a space)."""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         app.cfg.hex_mode = True
@@ -520,9 +520,9 @@ async def test_hex_receive_multiline_wraps_to_line_start():
     adapts to the display width and each wrapped line must start at column 0
     (format_hex's LF separator is sent as CR+LF, otherwise a bare LF makes every
     subsequent line drift right like a staircase)."""
-    from pyterm.config import AppConfig
+    from pycom.config import AppConfig
 
-    app = PyTermApp(cfg=AppConfig(hex_mode=True))
+    app = PyComApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
@@ -540,9 +540,9 @@ async def test_hex_receive_multiline_wraps_to_line_start():
 async def test_hex_receive_does_not_break_on_cr_lf_bytes():
     """HEX 接收时真实的 0A/0D 字节只是普通数据，显示为 "0A"/"0D"，
     不应像文本模式那样在换行字节处断行——只按字节数分组换行。"""
-    from pyterm.config import AppConfig
+    from pycom.config import AppConfig
 
-    app = PyTermApp(cfg=AppConfig(hex_mode=True))
+    app = PyComApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         app._rx_to_terminal(b"AB\r\nCD")  # 含真实 CR/LF（0D 0A）
@@ -556,9 +556,9 @@ async def test_hex_receive_does_not_break_on_cr_lf_bytes():
 async def test_hex_receive_wraps_across_small_chunks():
     """连续到达的多个小块也要严格按“每行 N 字节”换行（与发送区一致的连续
     自动换行），而不是每个块各自排版、长期堆在同一行不换行。"""
-    from pyterm.config import AppConfig
+    from pycom.config import AppConfig
 
-    app = PyTermApp(cfg=AppConfig(hex_mode=True))
+    app = PyComApp(cfg=AppConfig(hex_mode=True))
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         per_line = hex_bytes_per_line(max(1, app.model.columns), max_bytes=32)
@@ -576,7 +576,7 @@ async def test_hex_receive_wraps_across_small_chunks():
 
 
 async def test_hex_send_button_transmits_bytes():
-    app = PyTermApp()
+    app = PyComApp()
     sent: list[bytes] = []
     notes: list[str] = []
 
@@ -610,7 +610,7 @@ async def test_hex_send_button_transmits_bytes():
 
 
 async def test_idle_exit_when_no_bytes_received():
-    app = PyTermApp(exit_idle=0.2)
+    app = PyComApp(exit_idle=0.2)
     exited: list = []
 
     async with app.run_test(size=(100, 28)) as pilot:
@@ -630,7 +630,7 @@ async def test_idle_exit_when_no_bytes_received():
 
 
 def test_cli_short_params_removed_long_kept():
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     args = _parse_args(
         [
@@ -658,7 +658,7 @@ def test_cli_short_params_removed_long_kept():
 
 
 def test_cli_send_and_script_require_port():
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     with pytest.raises(SystemExit):
         _parse_args(["-s", "AT\r"])
@@ -677,9 +677,9 @@ def test_cli_send_and_script_require_port():
 
 
 async def test_connection_page_lists_virtual_loopback():
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp(enable_debug=True)
+    app = PyComApp(enable_debug=True)
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(ConnectionScreen())
@@ -690,9 +690,9 @@ async def test_connection_page_lists_virtual_loopback():
 
 
 async def test_connection_page_hides_virtual_loopback_by_default():
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(ConnectionScreen())
@@ -702,9 +702,9 @@ async def test_connection_page_hides_virtual_loopback_by_default():
 
 
 async def test_connect_virtual_loopback_routes_to_open_loopback():
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp(enable_debug=True)
+    app = PyComApp(enable_debug=True)
     calls: list = []
 
     async with app.run_test(size=(100, 30)) as pilot:
@@ -722,7 +722,7 @@ async def test_connect_virtual_loopback_routes_to_open_loopback():
 
 async def test_loopback_echoes_sent_bytes():
     """Virtual loopback: sent bytes come straight back as received text."""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert app.open_loopback() is None
@@ -742,7 +742,7 @@ async def test_loopback_echoes_sent_bytes():
 
 async def test_clear_screen_resets_tx_rx_counters():
     """清屏 (Ctrl+A C) 同时复位状态栏的 TX/RX 字节计数器与显示内容。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert app.open_loopback() is None
@@ -768,7 +768,7 @@ async def test_clear_screen_resets_tx_rx_counters():
 async def test_loopback_echoes_cr_as_crlf():
     """A lone \r sent into the loopback comes back as \r\n (like a real
     terminal), so Enter starts a new line instead of overwriting it."""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.3)
 
@@ -839,11 +839,11 @@ async def test_switch_from_loopback_to_real_port(monkeypatch):
     旧代码 open_serial() 不复位 _loopback：真实串口虽已打开，但发送仍被
     回环分支截走、状态栏仍显示“虚拟回环”，看起来就像“切换不成功”。
     """
-    from pyterm.config import ConnectionSettings
+    from pycom.config import ConnectionSettings
 
-    monkeypatch.setattr("pyterm.app.save_config", lambda cfg: None)
+    monkeypatch.setattr("pycom.app.save_config", lambda cfg: None)
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         fake = _FakeSerial()
@@ -869,11 +869,11 @@ async def test_switch_from_loopback_to_real_port(monkeypatch):
 
 async def test_switch_real_to_real_keeps_sending_to_new_port(monkeypatch):
     """真实串口 → 另一真实串口：数据发往新端口。"""
-    from pyterm.config import ConnectionSettings
+    from pycom.config import ConnectionSettings
 
-    monkeypatch.setattr("pyterm.app.save_config", lambda cfg: None)
+    monkeypatch.setattr("pycom.app.save_config", lambda cfg: None)
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         fake = _FakeSerial()
@@ -891,7 +891,7 @@ async def test_switch_real_to_real_keeps_sending_to_new_port(monkeypatch):
 
 
 def test_cli_exit_idle_accepts_float_and_rejects_nonpositive():
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     assert _parse_args(["-e", "0.5"]).exit_idle == 0.5
     assert _parse_args(["--exit-idle", "3"]).exit_idle == 3.0
@@ -902,14 +902,14 @@ def test_cli_exit_idle_accepts_float_and_rejects_nonpositive():
 
 
 def test_cli_hex_flag_parsed():
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     assert _parse_args(["--hex"]).hex is True
     assert _parse_args([]).hex is False
 
 
 def test_cli_enable_debug_parsed_and_hidden_from_help(capsys):
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     assert _parse_args(["--enable-debug"]).enable_debug is True
     assert _parse_args([]).enable_debug is False
@@ -924,10 +924,10 @@ def test_cli_enable_debug_parsed_and_hidden_from_help(capsys):
 
 async def test_hex_mode_enabled_at_startup_shows_bar():
     """A config with hex_mode=True (set by the --hex flag) starts in HEX mode."""
-    from pyterm.config import AppConfig
+    from pycom.config import AppConfig
 
     cfg = AppConfig(hex_mode=True)
-    app = PyTermApp(cfg=cfg)
+    app = PyComApp(cfg=cfg)
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.2)
         assert app.cfg.hex_mode is True
@@ -946,9 +946,9 @@ async def test_hex_mode_enabled_at_startup_shows_bar():
 async def test_options_compact_on_small_window():
     """A too-small window switches to the simple full-width layout instead of
     the boxed multi-column form, and it stays keyboard-navigable."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(60, 16)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(OptionsScreen())
@@ -995,9 +995,9 @@ async def test_options_compact_on_small_window():
 async def test_options_switches_layout_when_resized_and_keeps_edits():
     """Resizing across the threshold swaps rich <-> compact in place while
     keeping the values the user already typed/toggled."""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(OptionsScreen())
@@ -1033,9 +1033,9 @@ async def test_options_switches_layout_when_resized_and_keeps_edits():
 async def test_connection_compact_on_small_window_and_connect():
     """Small-window connection page replaces the port table with a dropdown
     (LOOPBACK still offered when --enable-debug) and connecting to it still works."""
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp(enable_debug=True)
+    app = PyComApp(enable_debug=True)
     calls: list = []
 
     async with app.run_test(size=(58, 15)) as pilot:
@@ -1069,9 +1069,9 @@ async def test_connection_compact_on_small_window_and_connect():
 
 async def test_connection_compact_threshold_is_30_rows():
     """连接页富布局在高度 <30 时自动切换为简洁模式（30 行及以上保持富布局）。"""
-    from pyterm.screens.connection import ConnectionScreen
+    from pycom.screens.connection import ConnectionScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 29)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(ConnectionScreen())
@@ -1084,9 +1084,9 @@ async def test_connection_compact_threshold_is_30_rows():
 
 async def test_options_compact_threshold_is_27_rows():
     """选项页富布局在高度 <27 时自动切换为简洁模式（27 行及以上保持富布局）。"""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 26)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(OptionsScreen())
@@ -1099,9 +1099,9 @@ async def test_options_compact_threshold_is_27_rows():
 
 async def test_compact_controls_start_at_the_same_column():
     """简洁模式下输入框与下拉框从同一列开始且等宽，不再参差不齐。"""
-    from pyterm.screens.options import OptionsScreen
+    from pycom.screens.options import OptionsScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 24)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(OptionsScreen())
@@ -1123,9 +1123,9 @@ async def test_compact_controls_start_at_the_same_column():
 async def test_main_menu_compact_threshold_is_30_rows():
     """功能菜单（含 about 两行与左下“返回”按钮）富布局在高度 <30 时自动切换
     为简洁模式（30 行及以上保持富布局）。"""
-    from pyterm.screens.help import MainMenuScreen
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 29)) as pilot:
         await pilot.pause(0.2)
         app.push_screen(MainMenuScreen())
@@ -1138,7 +1138,7 @@ async def test_main_menu_compact_threshold_is_30_rows():
 
 async def test_notifications_cleared_by_any_key():
     """未连接端口 / HEX 模式等 toast 提示放在左侧显示，按下任意键即关闭。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.2)
         app.notify("未连接端口：请按 Ctrl+A P 连接后再试", timeout=60)
@@ -1151,7 +1151,7 @@ async def test_notifications_cleared_by_any_key():
 
 async def test_toast_renders_at_bottom_left():
     """toast（未连接端口 / HEX 模式等）在屏幕左下角显示（ToastHolder 左对齐）。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28), notifications=True) as pilot:
         await pilot.pause(0.3)
         app.notify("未连接端口：请按 Ctrl+A P 连接后再试", severity="warning", timeout=60)
@@ -1172,9 +1172,9 @@ async def test_toast_renders_at_bottom_left():
 async def test_main_screen_menu_button_bottom_left_opens_menu():
     """主界面左下角的“菜单”按钮；点击打开同一功能菜单，
     且按钮不抢占键盘焦点（can_focus=False）。"""
-    from pyterm.screens.help import MainMenuScreen
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.2)
         btn = app.query_one("#menu-btn")
@@ -1197,7 +1197,7 @@ async def test_main_screen_menu_button_bottom_left_opens_menu():
 
 async def test_startup_hint_shown_without_connection():
     """程序一启动（无论是否连接端口）就在终端首行显示橙/粗体的菜单快捷键提示。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.2)
         assert app.is_connected() is False  # 没有连接端口
@@ -1211,7 +1211,7 @@ async def test_startup_hint_shown_without_connection():
 
 async def test_connect_hint_shown_in_orange_bold():
     """连接上端口后在屏幕上打印“已连接”提示（橙/粗体），每次连接都会打印。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause(0.3)
         assert app.open_loopback() is None
@@ -1241,7 +1241,7 @@ async def test_connect_hint_shown_in_orange_bold():
 
 async def test_ctrl_c_sends_break_no_quit_prompt():
     """Ctrl+C 直接发送 ^C 到串口，不再弹出 Textual 的“退出？”提示。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert app.open_loopback() is None
@@ -1260,7 +1260,7 @@ async def test_ctrl_shift_c_copies_selection():
     from textual.geometry import Offset
     from textual.selection import Selection
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         app.model.clear()
@@ -1276,7 +1276,7 @@ async def test_ctrl_shift_c_copies_selection():
 
 async def test_ctrl_shift_v_pastes_clipboard():
     """Ctrl+Shift+V 把剪贴板内容发送到串口。"""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert app.open_loopback() is None
@@ -1293,7 +1293,7 @@ async def test_paste_event_sends_to_port():
     """终端粘贴（bracketed paste）事件把内容发送到串口。"""
     from textual.events import Paste
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 28)) as pilot:
         await pilot.pause()
         assert app.open_loopback() is None
@@ -1310,10 +1310,10 @@ async def test_paste_event_sends_to_port():
 
 async def test_main_menu_shows_about_and_clean_copy():
     """菜单底部显示版本/作者/GitHub，条目去掉冗余括号说明（仅保留 YMODEM）。"""
-    from pyterm import PROJECT_AUTHOR, PROJECT_URL, __version__
-    from pyterm.screens.help import MainMenuScreen
+    from pycom import PROJECT_AUTHOR, PROJECT_URL, __version__
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -1334,9 +1334,9 @@ async def test_main_menu_shows_about_and_clean_copy():
 
 async def test_main_menu_back_button_bottom_left_closes():
     """菜单页面左下角有“返回”按钮，点击后回到主界面。"""
-    from pyterm.screens.help import MainMenuScreen
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -1361,7 +1361,7 @@ async def test_main_menu_back_button_bottom_left_closes():
 
 def test_cli_bare_requires_port():
     """--bare must specify a port: it is a headless bridge, not a UI."""
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     with pytest.raises(SystemExit):
         _parse_args(["--bare"])
@@ -1371,7 +1371,7 @@ def test_cli_bare_requires_port():
 
 def test_cli_bare_rejects_interactive_startup_options():
     """--bare has no UI, so -s/-f/-e/--hex (interactive startup) are refused."""
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     with pytest.raises(SystemExit):
         _parse_args(["--bare", "-p", "COM3", "--hex"])
@@ -1382,7 +1382,7 @@ def test_cli_bare_rejects_interactive_startup_options():
 
 
 def test_cli_bare_accepts_port_and_baud():
-    from pyterm.app import _parse_args
+    from pycom.app import _parse_args
 
     args = _parse_args(["--bare", "-p", "COM3", "-b", "115200"])
     assert args.bare is True
@@ -1396,9 +1396,9 @@ def test_cli_bare_accepts_port_and_baud():
 async def test_help_menu_stays_boxed_on_large_window():
     """The normal Ctrl+A Z menu keeps its centred boxed layout on a big-enough
     terminal (no `compact` class)."""
-    from pyterm.screens.help import MainMenuScreen
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -1411,9 +1411,9 @@ async def test_help_menu_compact_on_small_window_stays_usable():
     """Regression: the Ctrl+A Z menu overflowed tiny terminals.  Below the
     threshold the root toggles `compact`: it fills the screen, fits inside it,
     and every item is still reachable with the arrow keys."""
-    from pyterm.screens.help import MainMenuScreen
+    from pycom.screens.help import MainMenuScreen
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(40, 12)) as pilot:
         await pilot.pause()
         app.push_screen(MainMenuScreen())
@@ -1443,12 +1443,12 @@ async def test_help_menu_compact_on_small_window_stays_usable():
 
 async def test_confirm_dialog_stays_boxed_on_large_window():
     """The exit confirmation keeps its boxed layout when the terminal is big."""
-    from pyterm.screens.base import ConfirmDialog
+    from pycom.screens.base import ConfirmDialog
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(100, 24)) as pilot:
         await pilot.pause()
-        app.push_screen(ConfirmDialog("退出", "确定要退出 PyTerm 吗？"))
+        app.push_screen(ConfirmDialog("退出", "确定要退出 PyCom 吗？"))
         await pilot.pause(0.2)
         assert not app.screen_stack[-1].query_one("#confirm").has_class("compact")
 
@@ -1457,12 +1457,12 @@ async def test_confirm_dialog_compact_on_small_window():
     """Regression: the exit dialog (fixed width 54) overflowed narrow windows.
     On a small terminal it toggles `compact`, stays inside the screen, and both
     buttons remain usable."""
-    from pyterm.screens.base import ConfirmDialog
+    from pycom.screens.base import ConfirmDialog
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(40, 10)) as pilot:
         await pilot.pause()
-        app.push_screen(ConfirmDialog("退出", "确定要退出 PyTerm 吗？"))
+        app.push_screen(ConfirmDialog("退出", "确定要退出 PyCom 吗？"))
         await pilot.pause(0.2)
         scr = app.screen_stack[-1]
         root = scr.query_one("#confirm")
@@ -1480,7 +1480,7 @@ async def test_confirm_dialog_compact_on_small_window():
 
 async def test_app_does_not_exit_on_usable_window():
     """A normal-sized terminal never trips the too-small guard."""
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause(0.2)
         assert app._too_small is False
@@ -1490,9 +1490,9 @@ async def test_app_does_not_exit_on_usable_window():
 async def test_app_exits_when_terminal_too_small():
     """When the terminal is far too small to be usable, the app stops instead
     of rendering a broken interface."""
-    from pyterm.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS
+    from pycom.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS
 
-    app = PyTermApp()
+    app = PyComApp()
     async with app.run_test(size=(MIN_TERMINAL_COLS - 5, MIN_TERMINAL_ROWS - 1)) as pilot:
         await pilot.pause(0.3)
         assert app._too_small is True
@@ -1500,7 +1500,7 @@ async def test_app_exits_when_terminal_too_small():
 
 
 def test_too_small_message_lists_required_size():
-    from pyterm.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS, _too_small_message
+    from pycom.app import MIN_TERMINAL_COLS, MIN_TERMINAL_ROWS, _too_small_message
 
     msg = _too_small_message(10, 3)
     assert "10" in msg and "3" in msg
@@ -1514,7 +1514,7 @@ def test_cli_prints_hint_and_returns_1_when_terminal_too_small(monkeypatch, caps
     on stderr and exit code 1, without entering the (unusable) interface."""
     import os
 
-    import pyterm.app as appmod
+    import pycom.app as appmod
 
     monkeypatch.setattr(
         appmod.shutil, "get_terminal_size", lambda *a, **k: os.terminal_size((10, 3))

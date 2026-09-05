@@ -3,14 +3,27 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pyterm"
+name = "pycom"
 version = "1.0.0"
-description = "minicom-style cross-platform serial terminal with YMODEM file transfer (Windows + Linux)"
+description = "A minicom-style, cross-platform serial terminal TUI with robust YMODEM file transfer - built for embedded firmware flashing and everyday serial debugging"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "PyTerm" }]
-keywords = ["serial", "terminal", "ymodem", "minicom", "tui", "embedded"]
+authors = [{ name = "PyCom" }]
+keywords = [
+    "serial",
+    "terminal",
+    "ymodem",
+    "minicom",
+    "tui",
+    "embedded",
+    "firmware",
+    "bootloader",
+    "uart",
+    "serial-port",
+    "stm32",
+    "textual",
+]
 classifiers = [
     "Environment :: Console",
     "Operating System :: Microsoft :: Windows",
@@ -38,16 +51,16 @@ dev = [
 interop = ["pytest-timeout>=2"]
 
 [project.scripts]
-pyterm = "pyterm.app:main"
+pycom = "pycom.app:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pyterm"]
+packages = ["src/pycom"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/pyterm/resources/app.tcss" = "pyterm/resources/app.tcss"
+"src/pycom/resources/app.tcss" = "pycom/resources/app.tcss"
 
 [tool.hatch.build.targets.sdist]
-include = ["src/pyterm", "packaging", "tests"]
+include = ["src/pycom", "packaging", "tests"]
 
 [tool.ruff]
 line-length = 100
@@ -60,7 +73,7 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["src/pyterm"]
+files = ["src/pycom"]
 strict = false
 ignore_missing_imports = true
 
@@ -70,4 +83,4 @@ asyncio_mode = "auto"
 addopts = "-q"
 
 [tool.coverage.run]
-source = ["pyterm"]
+source = ["pycom"]

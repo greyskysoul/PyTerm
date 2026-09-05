@@ -10,8 +10,8 @@ from textual.content import Content
 from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Input, Label, Static
 
-from pyterm.config import save_config
-from pyterm.screens.base import AdaptiveModal, FieldSelect
+from pycom.config import save_config
+from pycom.screens.base import AdaptiveModal, FieldSelect
 
 
 class _CircleCheckbox(Checkbox):

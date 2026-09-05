@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for PyTerm.
+"""PyInstaller spec for PyCom.
 
 Build (run from the repository root):
-    pyinstaller --noconfirm packaging/pyterm.spec
-Output: dist/pyterm/  — onedir 布局（console app，TUI），体积优化要点：
+    pyinstaller --noconfirm packaging/pycom.spec
+Output: dist/pycom/  — onedir 布局（console app，TUI），体积优化要点：
   - 排除 ssl/网络模块（省 ~6MB libcrypto/libssl）
   - 排除未使用的 Textual 组件与 stdlib 扩展模块
   - 启用 strip + UPX（Windows 上 Python 3.14 因 CFG 自动跳过 UPX）
@@ -17,7 +17,7 @@ repo_root = spec_dir.parent
 
 # ship app.tcss so importlib.resources can find it in the frozen bundle
 datas = [
-    (str(repo_root / "src" / "pyterm" / "resources" / "app.tcss"), "pyterm/resources"),
+    (str(repo_root / "src" / "pycom" / "resources" / "app.tcss"), "pycom/resources"),
 ]
 
 a = Analysis(
@@ -103,7 +103,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="pyterm",
+    name="pycom",
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
@@ -125,5 +125,5 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    name="pyterm",
+    name="pycom",
 )

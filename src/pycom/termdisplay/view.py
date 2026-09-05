@@ -11,7 +11,7 @@ from rich.text import Text
 from textual.events import MouseScrollDown, MouseScrollUp
 from textual.widgets import Static
 
-from pyterm.termdisplay.vt import Char, TerminalModel
+from pycom.termdisplay.vt import Char, TerminalModel
 
 _HEX_RE = re.compile(r"^[0-9a-fA-F]{6}$")
 _ANSI_BASE = {

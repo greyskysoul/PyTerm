@@ -12,8 +12,8 @@ from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.widgets import Button, Input, Label, Static
 
-from pyterm.screens.base import ModalBase
-from pyterm.screens.filepicker import PathPicker
+from pycom.screens.base import ModalBase
+from pycom.screens.filepicker import PathPicker
 
 _SAFE_NAME = re.compile(r"[^\w.\- ]")
 

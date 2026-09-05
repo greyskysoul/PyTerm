@@ -1,4 +1,4 @@
-"""PyTerm application — minicom-style serial terminal with YMODEM transfer."""
+"""PyCom application — minicom-style serial terminal with YMODEM transfer."""
 
 from __future__ import annotations
 
@@ -23,24 +23,24 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.events import Key, Paste
 from textual.widgets import Button, TextArea
 
-from pyterm import APP_NAME, __version__
-from pyterm.config import AppConfig, ConnectionSettings, load_config, save_config
-from pyterm.keys import (
+from pycom import APP_NAME, __version__
+from pycom.config import AppConfig, ConnectionSettings, load_config, save_config
+from pycom.keys import (
     KeyMapper,
     decode_escapes,
     format_hex_lines,
     hex_bytes_per_line,
     parse_hex_line,
 )
-from pyterm.screens.base import ConfirmDialog
-from pyterm.screens.connection import ConnectionScreen
-from pyterm.screens.help import MainMenuScreen
-from pyterm.screens.options import OptionsScreen
-from pyterm.screens.transfer import RecvScreen, SendScreen
-from pyterm.serialio import SerialManager
-from pyterm.termdisplay.view import StatusBar, TerminalView
-from pyterm.termdisplay.vt import TerminalModel
-from pyterm.xfer.ymodem import YModemEngine
+from pycom.screens.base import ConfirmDialog
+from pycom.screens.connection import ConnectionScreen
+from pycom.screens.help import MainMenuScreen
+from pycom.screens.options import OptionsScreen
+from pycom.screens.transfer import RecvScreen, SendScreen
+from pycom.serialio import SerialManager
+from pycom.termdisplay.view import StatusBar, TerminalView
+from pycom.termdisplay.vt import TerminalModel
+from pycom.xfer.ymodem import YModemEngine
 
 _HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
 
@@ -58,7 +58,7 @@ _EXIT_TOO_SMALL = "too-small"
 
 def _too_small_message(cols: int, rows: int) -> str:
     return (
-        f"PyTerm: 终端窗口太小（{cols} 列 × {rows} 行），界面无法正常使用。\n"
+        f"PyCom: 终端窗口太小（{cols} 列 × {rows} 行），界面无法正常使用。\n"
         f"请将窗口放大到至少 {MIN_TERMINAL_COLS} 列 × {MIN_TERMINAL_ROWS} 行后重新运行。\n"
     )
 
@@ -201,7 +201,7 @@ _PREFIX_FUNCS = {
 def _load_css() -> str:
     """Read app.tcss from package resources (works frozen & editable)."""
     try:
-        return _resources.files("pyterm.resources").joinpath("app.tcss").read_text(encoding="utf-8")
+        return _resources.files("pycom.resources").joinpath("app.tcss").read_text(encoding="utf-8")
     except Exception:
         return ""
 
@@ -235,11 +235,11 @@ class _QueueIO:
         self.serial.write(data)
 
 
-class PyTermApp(App):
+class PyComApp(App):
     """The terminal main window.  Handles the Ctrl+A prefix key model."""
 
     CSS = CSS_CONTENT
-    TITLE = f"PyTerm v{__version__}"
+    TITLE = f"PyCom v{__version__}"
     SUB_TITLE = "串口终端 - YMODEM"
 
     # Ctrl+C 由 _on_key 直接发送 ^C 到串口；这里用一个空动作覆盖 Textual 默认的
@@ -370,7 +370,7 @@ class PyTermApp(App):
         if not (self.startup_text or self.startup_script):
             return
         self._startup_thread = threading.Thread(
-            target=self._run_startup_send, name="pyterm-startup-send", daemon=True
+            target=self._run_startup_send, name="pycom-startup-send", daemon=True
         )
         self._startup_thread.start()
 
@@ -767,7 +767,7 @@ class PyTermApp(App):
             self.push_screen(MainMenuScreen())
         elif code == "x":
             self.push_screen(
-                ConfirmDialog("退出", "确定要退出 PyTerm 吗？"),
+                ConfirmDialog("退出", "确定要退出 PyCom 吗？"),
                 callback=lambda yes: self.exit() if yes else None,
             )
         elif code == "s":
@@ -893,7 +893,7 @@ class PyTermApp(App):
             return
         path = self.cfg.capture_path
         if not path:
-            path = f"pyterm-capture-{time.strftime('%Y%m%d-%H%M%S')}.log"
+            path = f"pycom-capture-{time.strftime('%Y%m%d-%H%M%S')}.log"
         try:
             fh = open(path, "a", encoding="utf-8", newline="")  # noqa: SIM115 persistent handle
         except OSError as exc:
@@ -960,7 +960,7 @@ class PyTermApp(App):
         self._xfer_cancel.clear()
         self._xfer_ui = self.screen_stack[-1] if len(self.screen_stack) > 1 else None
         self._xfer_thread = threading.Thread(
-            target=self._run_send, args=(path,), name="pyterm-ymodem-send", daemon=True
+            target=self._run_send, args=(path,), name="pycom-ymodem-send", daemon=True
         )
         self._xfer_thread.start()
         return None
@@ -975,7 +975,7 @@ class PyTermApp(App):
         self._xfer_thread = threading.Thread(
             target=self._run_recv,
             args=(directory, name_override),
-            name="pyterm-ymodem-recv",
+            name="pycom-ymodem-recv",
             daemon=True,
         )
         self._xfer_thread.start()
@@ -1030,7 +1030,7 @@ class PyTermApp(App):
             self._xfer_emit("show_progress", phase, fname, sent, total)
 
         def open_file(filename: str, size) -> object | None:
-            from pyterm.screens.transfer import sanitize_filename
+            from pycom.screens.transfer import sanitize_filename
 
             fname = sanitize_filename(name_override or filename or "download.bin")
             path = os.path.join(directory, fname)
@@ -1065,11 +1065,11 @@ def _parse_args(argv):
         ),
         epilog=(
             "示例：\n"
-            "  pyterm -p COM3 -b 115200\n"
-            '  pyterm -p COM3 -s "AT\\r"\n'
-            "  pyterm -p COM3 -f boot.txt -e 5\n"
-            "  pyterm -p COM3 --hex\n"
-            "  pyterm --bare -p COM3 -b 115200   # 无界面纯直通：stdin→串口，串口→stdout\n"
+            "  pycom -p COM3 -b 115200\n"
+            '  pycom -p COM3 -s "AT\\r"\n'
+            "  pycom -p COM3 -f boot.txt -e 5\n"
+            "  pycom -p COM3 --hex\n"
+            "  pycom --bare -p COM3 -b 115200   # 无界面纯直通：stdin→串口，串口→stdout\n"
             "\n"
             "-s/-f 内容支持 \\n \\r \\t \\xHH 等转义；-e 支持小数秒。"
             "--bare 隐藏全部界面，仅供外部进程（如 AI agent）通过标准输入输出驱动。"
@@ -1194,17 +1194,17 @@ def run_bare(args) -> int:
             stop.set()
 
     def on_error(message: str) -> None:
-        sys.stderr.write(f"pyterm: {message}\n")
+        sys.stderr.write(f"pycom: {message}\n")
         sys.stderr.flush()
         stop.set()
 
     mgr = SerialManager(on_data=on_rx, on_error=on_error)
     err = mgr.open(conn)
     if err:
-        sys.stderr.write(f"pyterm: 连接失败: {err}\n")
+        sys.stderr.write(f"pycom: 连接失败: {err}\n")
         sys.stderr.flush()
         return 1
-    sys.stderr.write(f"pyterm: bare 直通已连接 {conn.short()}（stdin→串口，串口 RX→stdout）\n")
+    sys.stderr.write(f"pycom: bare 直通已连接 {conn.short()}（stdin→串口，串口 RX→stdout）\n")
     sys.stderr.flush()
 
     def pump_stdin() -> None:
@@ -1218,7 +1218,7 @@ def run_bare(args) -> int:
         except (OSError, ValueError):
             pass  # console closed / interrupted
 
-    stdin_thread = threading.Thread(target=pump_stdin, name="pyterm-bare-stdin", daemon=True)
+    stdin_thread = threading.Thread(target=pump_stdin, name="pycom-bare-stdin", daemon=True)
     stdin_thread.start()
     try:
         while stdin_thread.is_alive() and not stop.is_set():
@@ -1242,7 +1242,7 @@ def main(argv=None) -> int:
 
     cli_conn = _make_conn(cfg, args)
 
-    app = PyTermApp(
+    app = PyComApp(
         cfg=cfg,
         cli_conn=cli_conn,
         exit_idle=args.exit_idle,
