@@ -5,13 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "pycom"
 version = "1.0.0"
-description = "A minicom-style, cross-platform serial terminal TUI with robust YMODEM file transfer - built for embedded firmware flashing and everyday serial debugging"
+description = "A minicom-style cross-platform serial terminal TUI (Windows + Linux) with robust YMODEM file transfer, HEX mode, VT/ANSI rendering, session capture, and a --bare headless pass-through for embedded firmware flashing and everyday serial debugging."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "PyCom" }]
 keywords = [
     "serial",
+    "serial-port",
+    "serial-terminal",
+    "serial-monitor",
     "terminal",
     "ymodem",
     "minicom",
@@ -19,10 +22,13 @@ keywords = [
     "embedded",
     "firmware",
     "bootloader",
-    "uart",
-    "serial-port",
     "stm32",
+    "uart",
+    "cross-platform",
     "textual",
+    "pyserial",
+    "cli",
+    "developer-tools",
 ]
 classifiers = [
     "Environment :: Console",
